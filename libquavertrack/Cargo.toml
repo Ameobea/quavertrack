@@ -1,0 +1,8 @@
+[package]
+authors = ["Casey Primozic <me@ameo.link>"]
+edition = "2018"
+name = "libquavertrack"
+version = "0.1.0"
+
+[dependencies]
+diesel = { version = "1.4", features = ["chrono", "postgres"] }
