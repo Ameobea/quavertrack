@@ -113,7 +113,7 @@ pub fn get_last_update_timestamp(
 
     stats_updates::table
         .filter(stats_updates::user_id.eq(user_id))
-        .order_by(stats_updates::recorded_at.asc())
+        .order_by(stats_updates::recorded_at.desc())
         .select(stats_updates::dsl::recorded_at)
         .first(conn)
         .optional()

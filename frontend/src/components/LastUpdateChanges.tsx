@@ -86,7 +86,7 @@ const LastUpdateChanges: React.FC<{
   mode: Mode;
 }> = ({ newUpdate, lastUpdate, mode }) => {
   if (!newUpdate) {
-    return <>Loading...</>;
+    return <div style={{ height: 130 }}>Loading...</div>;
   } else if ('error' in newUpdate) {
     return <>{newUpdate.error}</>;
   } else if (!lastUpdate) {

@@ -53,6 +53,7 @@ pub async fn update<'a>(
             let now = Utc::now();
             let last_update_time_utc: DateTime<Utc> = DateTime::from_utc(last_update_time, Utc);
             let diff = now - last_update_time_utc;
+
             if diff < chrono::Duration::seconds(crate::conf::MIN_SECONDS_BETWEEN_UPDATES) {
                 Some(diff.num_seconds())
             } else {

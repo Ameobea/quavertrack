@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { Option } from 'funfix-core';
+import { Button, ButtonGroup } from '@blueprintjs/core';
 
 import { getStatsHistory, StatsUpdate, updateUser } from '../api';
 import TrendChart, { getSeriesDefaults } from '../components/TrendChart';
 import * as colors from '../styles/colors';
 import LastUpdateChanges from '../components/LastUpdateChanges';
-import { Button, ButtonGroup } from '@blueprintjs/core';
 import LargeUserSearch from '../components/LargeUserSearch';
 
 const styles: { [key: string]: React.CSSProperties } = {
@@ -26,6 +26,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     justifyContent: 'flex-start',
     marginBottom: 60,
+  },
+  globalSearchWrapper: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  globalSearch: {
+    background: '#283030',
   },
 };
 
@@ -149,6 +157,7 @@ const UserInfo: React.FC = () => {
         }
       });
   }, [username]);
+  const [userSearchValue, setUserSearchValue] = useState('');
 
   if (mode !== '4k' && mode !== '7k') {
     history.push(`/user/${username}`);
@@ -166,6 +175,28 @@ const UserInfo: React.FC = () => {
 
   return (
     <div style={styles.root}>
+      <div style={styles.globalSearchWrapper} className='bp3-input-group'>
+        <span className='bp3-icon bp3-icon-search' />
+        <input
+          style={styles.globalSearch}
+          className='bp3-input'
+          value={userSearchValue}
+          onChange={(evt) => setUserSearchValue(evt.target.value)}
+          type='search'
+          placeholder='Search User'
+          size={14}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setLastUpdate(null);
+              history.push(`/user/${userSearchValue}/${mode}`);
+              (e.target as any).blur();
+              setUserSearchValue('');
+            }
+          }}
+          dir='auto'
+        />
+      </div>
+
       <h1>
         {mode} Stats for {username}
       </h1>
@@ -176,7 +207,7 @@ const UserInfo: React.FC = () => {
           mode={mode in Mode ? (mode as Mode) : Mode.K4}
         />
       ) : (
-        <div style={{ height: 100 }}>Loading...</div>
+        <div style={{ minHeight: 100 }}>Loading...</div>
       )}
 
       {series ? (
