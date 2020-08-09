@@ -30,8 +30,16 @@ export const getStatsHistory = async (
   _key: string,
   username: string,
   mode: string
-): Promise<StatsUpdate[]> =>
-  fetch(`/api/user/${username}/${mode}/stats_history`).then((res) => res.json());
+): Promise<StatsUpdate[] | null> =>
+  fetch(`/api/user/${username}/${mode}/stats_history`).then((res) => {
+    if (res.ok) {
+      return res.json();
+    } else if (res.status === 404) {
+      return null;
+    }
+
+    throw res.status;
+  });
 
 export const updateUser = (username: string): Promise<[StatsUpdate, StatsUpdate]> =>
   fetch(`/api/update/${username}`, { method: 'POST' }).then((res) => {
