@@ -32,3 +32,12 @@ export const getStatsHistory = async (
   mode: string
 ): Promise<StatsUpdate[]> =>
   fetch(`/api/user/${username}/${mode}/stats_history`).then((res) => res.json());
+
+export const updateUser = (username: string): Promise<[StatsUpdate, StatsUpdate]> =>
+  fetch(`/api/update/${username}`, { method: 'POST' }).then((res) => {
+    if (res.ok) {
+      return res.json();
+    }
+
+    throw res.status;
+  });

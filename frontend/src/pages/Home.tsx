@@ -27,6 +27,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: 10,
     fontSize: 20,
     textAlign: 'center',
+    color: '#ddd',
+    backgroundColor: '#121212',
+    border: '1px solid #777',
+    outline: 0,
   },
 };
 

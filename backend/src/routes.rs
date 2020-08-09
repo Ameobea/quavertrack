@@ -32,7 +32,10 @@ fn parse_mode(mode: &str) -> Result<i16, Status> {
 }
 
 #[post("/update/<user>")]
-pub async fn update<'a>(user: String, conn: DbConn) -> Result<Option<()>, Status> {
+pub async fn update<'a>(
+    user: String,
+    conn: DbConn,
+) -> Result<Option<Json<[DBStatsUpdate; 2]>>, Status> {
     let (conn, (_username, user_id)) = match crate::get_user_id(conn.0, &user)
         .await
         .map_err(stringify_internal_err)?
@@ -66,8 +69,8 @@ pub async fn update<'a>(user: String, conn: DbConn) -> Result<Option<()>, Status
         ));
     }
 
-    match crate::update_user(conn, user_id).await {
-        Ok(()) => Ok(()),
+    let stats_update = match crate::update_user(conn, user_id).await {
+        Ok(stats_update) => Ok(stats_update),
         Err(crate::UpdateUserError::NotFound) => return Ok(None),
         Err(err) => Err(err),
     }
@@ -76,7 +79,7 @@ pub async fn update<'a>(user: String, conn: DbConn) -> Result<Option<()>, Status
         Status::new(500, "Error updating user; internal error")
     })?;
 
-    Ok(Some(()))
+    Ok(Some(Json(stats_update)))
 }
 
 #[get("/user/<user>/<mode>/scores")]

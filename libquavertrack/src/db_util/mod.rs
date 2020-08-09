@@ -52,7 +52,7 @@ pub fn store_scores(
 pub fn store_stats_update(
     conn: &PgConnection,
     stats: APIStatsUser,
-) -> Result<(), diesel::result::Error> {
+) -> Result<Vec<DBStatsUpdate>, diesel::result::Error> {
     use schema::stats_updates;
 
     let [update_4k, update_7k] = stats.to_db();
@@ -60,8 +60,8 @@ pub fn store_stats_update(
 
     diesel::insert_into(stats_updates::table)
         .values(records)
-        .execute(conn)
-        .map(drop)
+        .returning(stats_updates::all_columns)
+        .get_results(conn)
 }
 
 pub fn get_stats_updates_for_user(
@@ -77,7 +77,7 @@ pub fn get_stats_updates_for_user(
                 .eq(user_id)
                 .and(stats_updates::dsl::mode.eq(mode)),
         )
-        .order_by(stats_updates::dsl::recorded_at.desc())
+        .order_by(stats_updates::dsl::recorded_at.asc())
         .load(conn)
 }
 
@@ -113,7 +113,7 @@ pub fn get_last_update_timestamp(
 
     stats_updates::table
         .filter(stats_updates::user_id.eq(user_id))
-        .order_by(stats_updates::recorded_at.desc())
+        .order_by(stats_updates::recorded_at.asc())
         .select(stats_updates::dsl::recorded_at)
         .first(conn)
         .optional()

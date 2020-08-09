@@ -12,7 +12,7 @@ extern crate log;
 use diesel::pg::PgConnection;
 use libquavertrack::{
     api::{self, APIError},
-    db_util,
+    db_util::{self, models::DBStatsUpdate},
 };
 use thiserror::Error;
 use tokio::task::block_in_place;
@@ -37,12 +37,16 @@ pub enum UpdateUserError {
 pub async fn update_user(
     conn: diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>,
     user_id: i64,
-) -> Result<(), UpdateUserError> {
+) -> Result<[DBStatsUpdate; 2], UpdateUserError> {
     // Fetch + store current stats for user
     let user_stats = api::get_user_stats(user_id)
         .await?
         .ok_or(UpdateUserError::NotFound)?;
-    block_in_place(|| db_util::store_stats_update(&conn, user_stats))?;
+    let [stats_4k, stats_7k] = block_in_place(|| db_util::store_stats_update(&conn, user_stats))
+        .map(|updates| {
+            let mut updates = updates.into_iter();
+            [updates.next().unwrap(), updates.next().unwrap()]
+        })?;
 
     // Fetch + store most recent 4k scores for user
     let recent_4k_scores = api::get_user_recent_scores(user_id, 1)
@@ -68,7 +72,7 @@ pub async fn update_user(
         .ok_or(UpdateUserError::NotFound)?;
     block_in_place(|| db_util::store_scores(&conn, user_id, best_7k_scores))?;
 
-    Ok(())
+    Ok([stats_4k, stats_7k])
 }
 
 pub async fn get_user_id(
