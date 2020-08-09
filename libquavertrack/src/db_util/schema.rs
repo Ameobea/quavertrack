@@ -22,7 +22,7 @@ table! {
         mods_string -> Text,
         performance_rating -> Float4,
         personal_best -> Bool,
-        is_donator_score -> Bool,
+        is_donator_score -> Nullable<Bool>,
         total_score -> Int8,
         accuracy -> Float4,
         grade -> Varchar,
@@ -63,6 +63,9 @@ table! {
         multiplayer_wins -> Int8,
         multiplayer_losses -> Int8,
         multiplayer_ties -> Int8,
+        country_rank -> Int8,
+        global_rank -> Int8,
+        multiplayer_win_rank -> Int8,
     }
 }
 

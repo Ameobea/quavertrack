@@ -30,7 +30,10 @@ CREATE TABLE stats_updates (
   total_pauses BIGINT NOT NULL,
   multiplayer_wins BIGINT NOT NULL,
   multiplayer_losses BIGINT NOT NULL,
-  multiplayer_ties BIGINT NOT NULL
+  multiplayer_ties BIGINT NOT NULL,
+  country_rank BIGINT NOT NULL,
+  global_rank BIGINT NOT NULL,
+  multiplayer_win_rank BIGINT NOT NULL
 );
 
 CREATE TABLE maps (
@@ -54,7 +57,7 @@ CREATE TABLE scores (
   mods_string TEXT NOT NULL,
   performance_rating REAL NOT NULL,
   personal_best BOOLEAN NOT NULL,
-  is_donator_score BOOLEAN NOT NULL,
+  is_donator_score BOOLEAN,
   total_score BIGINT NOT NULL,
   accuracy REAL NOT NULL,
   grade VARCHAR(4) NOT NULL,
