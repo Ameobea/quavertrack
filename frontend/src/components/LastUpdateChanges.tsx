@@ -6,9 +6,26 @@ import * as colors from '../styles/colors';
 import { Mode } from '../pages/UserInfo';
 import './LastUpdateChanges.scss';
 
-const NumberFormatter = new Intl.NumberFormat(undefined, {});
+const NumberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
-const formatNumber = (number: number) => NumberFormatter.format(number);
+const formatNumber = (number: number) => {
+  let magnitudeNum = number;
+  let suffix = '';
+
+  if (number > 1200000000) {
+    suffix = 'b';
+    magnitudeNum /= 1000000000;
+  } else if (number > 1200000) {
+    suffix = 'kk';
+    magnitudeNum /= 1000000;
+  } else if (number > 120000) {
+    suffix = 'k';
+    magnitudeNum /= 1000;
+  }
+
+  const formatted = NumberFormatter.format(magnitudeNum);
+  return `${formatted}${suffix}`;
+};
 
 const Diff: React.FC<{ before: number; after: number; invert?: boolean }> = ({
   before,
@@ -45,18 +62,19 @@ const ChangeCell: React.FC<{
   </div>
 );
 
-const RelativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { style: 'short' });
+const RelativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { style: 'long' });
 
 const formatTimeDiffSeconds = (seconds: number) => {
-  if (seconds > 24 * 60 * 60 * 1.5) {
+  const absSeconds = Math.abs(seconds);
+  if (absSeconds > 24 * 60 * 60 * 1.5) {
     const days = seconds / (24 * 60 * 60);
-    return RelativeTimeFormatter.format(days, 'days');
-  } else if (seconds > 60 * 60 * 1.5) {
+    return RelativeTimeFormatter.format(Math.round(days * 10) / 10, 'days');
+  } else if (absSeconds > 60 * 60 * 1.5) {
     const hours = seconds / (60 * 60);
-    return RelativeTimeFormatter.format(hours, 'hours');
-  } else if (seconds > 60 * 2) {
+    return RelativeTimeFormatter.format(Math.round(hours * 10) / 10, 'hours');
+  } else if (absSeconds > 60 * 2) {
     const mins = seconds / 60;
-    return RelativeTimeFormatter.format(mins, 'minutes');
+    return RelativeTimeFormatter.format(Math.round(mins * 10) / 10, 'minutes');
   } else {
     return RelativeTimeFormatter.format(seconds, 'seconds');
   }

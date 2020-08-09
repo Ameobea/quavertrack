@@ -269,8 +269,8 @@ pub struct NewDBStatsUpdate {
     pub multiplayer_wins: i64,
     pub multiplayer_losses: i64,
     pub multiplayer_ties: i64,
-    pub global_rank: i64,
     pub country_rank: i64,
+    pub global_rank: i64,
     pub multiplayer_win_rank: i64,
 }
 
@@ -298,8 +298,8 @@ pub struct DBStatsUpdate {
     pub multiplayer_wins: i64,
     pub multiplayer_losses: i64,
     pub multiplayer_ties: i64,
-    pub global_rank: i64,
     pub country_rank: i64,
+    pub global_rank: i64,
     pub multiplayer_win_rank: i64,
 }
 

@@ -7,9 +7,19 @@ import { getStatsHistory, StatsUpdate, updateUser } from '../api';
 import TrendChart, { getSeriesDefaults } from '../components/TrendChart';
 import * as colors from '../styles/colors';
 import LastUpdateChanges from '../components/LastUpdateChanges';
+import { Button, ButtonGroup } from '@blueprintjs/core';
 
 const styles: { [key: string]: React.CSSProperties } = {
-  root: { textAlign: 'center' },
+  root: {
+    textAlign: 'center',
+    marginLeft: 'max(4vw, 12px)',
+    marginRight: 'max(4vw, 12px)',
+  },
+  chartContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+  },
 };
 
 export enum Mode {
@@ -27,6 +37,9 @@ const UserInfo: React.FC = () => {
     queryFn: getStatsHistory,
     config: { refetchOnWindowFocus: false },
   });
+  const [rankType, setRankType] = useState<'global_rank' | 'country_rank' | 'multiplayer_win_rank'>(
+    'global_rank'
+  );
   const rankSeries: echarts.EChartOption.Series[] | null = useMemo(() => {
     if (!statsUpdates) {
       return null;
@@ -35,15 +48,19 @@ const UserInfo: React.FC = () => {
     return [
       {
         ...getSeriesDefaults(),
-        name: 'Rank',
+        name: {
+          global_rank: 'Global Rank',
+          country_rank: 'Country Rank',
+          multiplayer_win_rank: 'Multiplayer Win Rank',
+        }[rankType],
         data: statsUpdates.map(
-          (update) => [new Date(update.recorded_at), update.global_rank] as const
+          (update) => [new Date(update.recorded_at), update[rankType]] as const
         ) as any,
         lineStyle: { color: colors.emphasis },
         itemStyle: { color: colors.emphasis, borderColor: '#fff' },
       },
     ];
-  }, [statsUpdates]);
+  }, [statsUpdates, rankType]);
   const [lastUpdate, setLastUpdate] = useState<
     null | { '4k': StatsUpdate; '7k': StatsUpdate } | { error: string }
   >(null);
@@ -82,7 +99,9 @@ const UserInfo: React.FC = () => {
 
   return (
     <div style={styles.root}>
-      <h1>User Stats for {username}</h1>
+      <h1>
+        {mode} Stats for {username}
+      </h1>
       {statsUpdates ? (
         <LastUpdateChanges
           lastUpdate={statsUpdates[statsUpdates.length - 1]}
@@ -93,7 +112,30 @@ const UserInfo: React.FC = () => {
         'Loading...'
       )}
 
-      {rankSeries ? <TrendChart series={rankSeries} /> : 'Loading...'}
+      {rankSeries ? (
+        <div style={styles.chartContainer}>
+          <ButtonGroup>
+            <Button onClick={() => setRankType('global_rank')} active={rankType === 'global_rank'}>
+              Global Rank
+            </Button>
+            <Button
+              onClick={() => setRankType('country_rank')}
+              active={rankType === 'country_rank'}
+            >
+              Country Rank
+            </Button>
+            <Button
+              onClick={() => setRankType('multiplayer_win_rank')}
+              active={rankType === 'multiplayer_win_rank'}
+            >
+              Multiplayer Win Rank
+            </Button>
+          </ButtonGroup>
+          <TrendChart series={rankSeries} inverse />
+        </div>
+      ) : (
+        'Loading...'
+      )}
     </div>
   );
 };

@@ -5,9 +5,42 @@ import 'echarts/lib/chart/line';
 import 'echarts/lib/component/tooltip';
 import 'echarts/lib/component/legend';
 import 'echarts/lib/component/dataZoom';
+import * as R from 'ramda';
+import dayjs from 'dayjs';
 
 import { withMobileProp } from './ResponsiveHelpers';
 import MobileZoomHandle from './MobileZoomHandle';
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const analyzeTimeSeries = (series: [Date, number][], zoomStart = 0, zoomEnd = 100) => {
+  const first = series[0] || [new Date('3000-04-20'), 0];
+  const last = R.last(series) || [new Date('1900-04-20'), 0];
+
+  // We limit the series to only include data points that are active in the currently displayed
+  // zoom region
+  const timeRangeMs = dayjs(last[0]).diff(dayjs(first[0]), 'ms');
+  const windowPadding = Math.abs(MS_PER_DAY / timeRangeMs) * 100;
+
+  const zoomStartDate = new Date(
+    first[0].getTime() + (Math.max(zoomStart - windowPadding, 0) * timeRangeMs) / 100
+  );
+  const zoomEndDate = new Date(
+    first[0].getTime() + (Math.min(zoomEnd + windowPadding, 100) * timeRangeMs) / 100
+  );
+
+  const values = (series.length > 0
+    ? series.filter(([date]: [Date, number]) => date >= zoomStartDate && date <= zoomEndDate)
+    : series
+  ).map((arr) => arr[1]);
+
+  const min = values.reduce(R.min, values[0] || 0);
+  const max = values.reduce(R.max, values[0] || 0);
+
+  const offset = 0.05 * (max - min);
+
+  return { min, max, first, last, offset };
+};
 
 export const getSeriesDefaults = () =>
   ({
@@ -22,9 +55,12 @@ const TrendChart: React.FC<{
   series: echarts.EChartOption.Series[];
   mobile: boolean;
   title: string;
-}> = ({ series, mobile, title }) => {
-  const option = useMemo(
-    () => ({
+  inverse: boolean;
+}> = ({ series, mobile, title, inverse }) => {
+  const option = useMemo(() => {
+    const { min, max, offset } = analyzeTimeSeries(series[0].data! as any);
+
+    return {
       backgroundColor: '#1d2126',
       legend: { show: true, textStyle: { color: '#fff' } },
       grid: {
@@ -82,6 +118,9 @@ const TrendChart: React.FC<{
           splitLine: {
             lineStyle: { color: '#323232' },
           },
+          min: min - offset,
+          max: max + offset,
+          inverse,
         },
       ],
       dataZoom: [
@@ -100,11 +139,16 @@ const TrendChart: React.FC<{
       ],
       title: { text: title },
       series,
-    }),
-    [series, mobile, title]
-  );
+    };
+  }, [series, mobile, title, inverse]);
 
-  return <ReactEchartsCore echarts={echarts} option={option} />;
+  return (
+    <ReactEchartsCore
+      echarts={echarts}
+      option={option}
+      style={{ height: mobile ? 'max(30vh, 300px)' : 'max(45vh, 400px)' }}
+    />
+  );
 };
 
 export default withMobileProp({ maxDeviceWidth: 800 })(TrendChart);
