@@ -75,7 +75,7 @@ pub async fn update_user(
 pub async fn main() {
     rocket::ignite()
         .mount(
-            "/",
+            "/api/",
             routes![
                 routes::update,
                 routes::get_stats_history,

@@ -2,6 +2,7 @@
   "name": "quavertrack-frontend",
   "version": "0.1.0",
   "description": "Quavertrack Frontend",
+  "license": "MIT",
   "main": "src/index.tsx",
   "repository": "https://github.com/Ameobea/quavertrack",
   "author": "Casey Primozic <me@ameo.link>",
@@ -12,6 +13,8 @@
     "@babel/plugin-syntax-dynamic-import": "^7.8.3",
     "@babel/preset-react": "^7.10.4",
     "@babel/preset-typescript": "^7.10.4",
+    "@types/react-query": "^1.1.2",
+    "@types/react-router-dom": "^5.1.5",
     "@typescript-eslint/eslint-plugin": "^3.8.0",
     "@typescript-eslint/parser": "^3.8.0",
     "babel-eslint": "^10.1.0",
@@ -37,14 +40,14 @@
   },
   "scripts": {
     "start": "webpack-dev-server",
-    "build": "rm -rf dist/* && webpack --config webpack.prod.js && cp -r ./public/* ./dist",
+    "build": "cp ./src/iconSvgPaths.js ./node_modules/@blueprintjs/icons/lib/esm/generated/iconSvgPaths.js && rm -rf dist/* && webpack --config webpack.prod.js && cp -r ./public/* ./dist",
     "lint": "eslint \"./src/**/*.@(ts|tsx|js|jsx)\""
   },
   "dependencies": {
+    "@blueprintjs/core": "^3.30.1",
     "@types/ramda": "^0.27.14",
     "@types/react": "^16.9.45",
     "@types/react-dom": "^16.9.8",
-    "@types/react-redux": "^7.1.9",
     "@types/webmidi": "^2.0.4",
     "ameo-utils": "^0.6.1",
     "funfix-core": "^7.0.1",
@@ -53,7 +56,12 @@
     "ramda": "^0.27.1",
     "react": "^16.13.1",
     "react-dom": "16.13.1",
-    "react-redux": "^7.2.1",
+    "react-query": "^2.5.13",
+    "react-router-dom": "^5.2.0",
     "react-virtualized": "^9.21.2"
-  }
+  },
+  "resolutions": {
+    "react-transition-group": "4.0.0"
+  },
+  "proxy": "http://localhost:8000/"
 }
