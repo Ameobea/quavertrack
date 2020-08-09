@@ -1,0 +1,1 @@
+pub const MIN_SECONDS_BETWEEN_UPDATES: i64 = 10;

@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use diesel::{pg::PgConnection, prelude::*};
 
 pub mod models;
@@ -41,6 +42,7 @@ pub fn store_scores(
 
     diesel::insert_into(scores::table)
         .values(&db_scores)
+        .on_conflict_do_nothing()
         .execute(conn)
         .map(drop)
 }
@@ -87,4 +89,18 @@ pub fn get_scores_for_user(
         .load(conn)?;
 
     Ok((maps, scores))
+}
+
+pub fn get_last_update_timestamp(
+    conn: &PgConnection,
+    user_id: i64,
+) -> Result<Option<NaiveDateTime>, diesel::result::Error> {
+    use schema::stats_updates;
+
+    stats_updates::table
+        .filter(stats_updates::user_id.eq(user_id))
+        .order_by(stats_updates::recorded_at.desc())
+        .select(stats_updates::dsl::recorded_at)
+        .first(conn)
+        .optional()
 }

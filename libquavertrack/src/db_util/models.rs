@@ -1,9 +1,9 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::db_util::schema::{maps, scores, stats_updates};
 
-#[derive(Debug, Clone, Deserialize, Insertable, Queryable)]
+#[derive(Debug, Clone, Serialize, Deserialize, Insertable, Queryable)]
 #[table_name = "maps"]
 pub struct Map {
     pub id: i64,
@@ -20,7 +20,7 @@ pub struct Map {
 #[derive(Debug, Clone, Deserialize)]
 pub struct APIScore {
     pub id: i64,
-    pub time: NaiveDateTime,
+    pub time: DateTime<Utc>,
     pub mode: i16,
     pub mods: i64,
     pub mods_string: String,
@@ -47,7 +47,7 @@ impl APIScore {
         let db_score = DBScore {
             id: self.id,
             user_id,
-            time: self.time,
+            time: self.time.naive_utc(),
             mode: self.mode,
             mods: self.mods,
             mods_string: self.mods_string,
@@ -105,11 +105,11 @@ pub struct APIStatsUserInfo {
     pub id: i64,
     pub steam_id: Option<String>,
     pub username: String,
-    pub time_registered: Option<NaiveDateTime>,
+    pub time_registered: Option<DateTime<Utc>>,
     pub allowed: i64,
     pub privileges: i64,
     pub usergroups: i64,
-    pub mute_endtime: Option<NaiveDateTime>,
+    pub mute_endtime: Option<DateTime<Utc>>,
     pub latest_activity: String,
     pub country: String,
     pub avatar_url: String,
@@ -118,12 +118,19 @@ pub struct APIStatsUserInfo {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum ActivityMap {
+    EmptyMap { id: i64, name: String },
+    Map(Map),
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct ActivityFeed {
     pub id: i64,
     #[serde(rename = "type")]
     pub type_field: i64,
-    pub timestamp: NaiveDateTime,
-    pub map: Option<Map>,
+    pub timestamp: DateTime<Utc>,
+    pub map: Option<ActivityMap>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
