@@ -71,6 +71,42 @@ pub async fn update_user(
     Ok(())
 }
 
+pub async fn get_user_id(
+    conn: diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>,
+    user: &str,
+) -> Result<
+    (
+        diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>,
+        Option<(String, i64)>,
+    ),
+    UpdateUserError,
+> {
+    // Try to get by username first
+    match block_in_place(|| db_util::get_user_id_by_username(&conn, user))? {
+        Some(user_id) => return Ok((conn, Some((user.to_owned(), user_id)))),
+        None => (),
+    };
+
+    // Try to get by ID
+    if let Ok(parsed_user_id) = user.parse::<i64>() {
+        match block_in_place(|| db_util::get_username_by_user_id(&conn, parsed_user_id))? {
+            Some(username) => return Ok((conn, Some((username, parsed_user_id)))),
+            None => (),
+        }
+    }
+
+    // Hit the Quaver API to try to look this user up
+    match api::lookup_user(user).await? {
+        Some(user) => {
+            // Store user in DB
+            db_util::store_user(&conn, &user)?;
+
+            Ok((conn, Some((user.username, user.id))))
+        }
+        None => Ok((conn, None)),
+    }
+}
+
 #[tokio::main]
 pub async fn main() {
     rocket::ignite()

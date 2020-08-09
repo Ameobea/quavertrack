@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::db_util::schema::{maps, scores, stats_updates};
+use crate::db_util::schema::{maps, scores, stats_updates, users};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Insertable, Queryable)]
 #[table_name = "maps"]
@@ -203,7 +203,7 @@ impl APIStatsUser {
 }
 
 #[derive(Deserialize)]
-pub struct APIGetUserResponse {
+pub struct APIGetUserStatsResponse {
     pub status: u32,
     pub user: APIStatsUser,
 }
@@ -301,4 +301,63 @@ pub struct DBStatsUpdate {
     pub global_rank: i64,
     pub country_rank: i64,
     pub multiplayer_win_rank: i64,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct APIUser {
+    pub id: i64,
+    pub steam_id: Option<String>,
+    pub username: String,
+    pub country: Option<String>,
+    pub time_registered: Option<DateTime<Utc>>,
+    pub allowed: bool,
+    pub privileges: i64,
+    pub usergroups: i64,
+    pub mute_endtime: Option<DateTime<Utc>>,
+    pub latest_activity: String,
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct APIGetUsersResponse {
+    pub status: u32,
+    pub users: Vec<APIUser>,
+}
+
+#[derive(Deserialize)]
+pub struct APISearchUser {
+    pub id: i64,
+    pub username: String,
+    pub steam_id: Option<String>,
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct APISearchUsersResponse {
+    pub status: u32,
+    pub users: Vec<APISearchUser>,
+}
+
+#[derive(Insertable)]
+#[table_name = "users"]
+pub struct NewDBUser {
+    pub id: i64,
+    pub username: String,
+    pub steam_id: Option<String>,
+    pub time_registered: Option<NaiveDateTime>,
+    pub country: Option<String>,
+    pub avatar_url: Option<String>,
+}
+
+impl From<APIUser> for NewDBUser {
+    fn from(other: APIUser) -> Self {
+        NewDBUser {
+            id: other.id,
+            username: other.username,
+            steam_id: other.steam_id,
+            time_registered: other.time_registered.map(|dt| dt.naive_utc()),
+            country: other.country,
+            avatar_url: other.avatar_url,
+        }
+    }
 }

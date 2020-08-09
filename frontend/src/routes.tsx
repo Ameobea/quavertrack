@@ -14,6 +14,10 @@ const Routes: React.FC = () => (
       <Route exact path='/user/:username'>
         <UserInfo />
       </Route>
+
+      <Route exact path='/user/:username/:mode'>
+        <UserInfo />
+      </Route>
     </Switch>
   </Router>
 );

@@ -4,7 +4,9 @@ use diesel::{pg::PgConnection, prelude::*};
 pub mod models;
 pub mod schema;
 
-use self::models::{APIScore, APIStatsUser, DBScore, DBStatsUpdate, Map, NewDBStatsUpdate};
+use self::models::{
+    APIScore, APIStatsUser, APIUser, DBScore, DBStatsUpdate, Map, NewDBStatsUpdate, NewDBUser,
+};
 
 pub fn store_maps(conn: &PgConnection, maps: &[Map]) -> Result<(), diesel::result::Error> {
     use schema::maps;
@@ -65,22 +67,34 @@ pub fn store_stats_update(
 pub fn get_stats_updates_for_user(
     conn: &PgConnection,
     user_id: i64,
+    mode: i16,
 ) -> Result<Vec<DBStatsUpdate>, diesel::result::Error> {
     use schema::stats_updates;
 
     stats_updates::table
-        .filter(stats_updates::dsl::user_id.eq(user_id))
+        .filter(
+            stats_updates::dsl::user_id
+                .eq(user_id)
+                .and(stats_updates::dsl::mode.eq(mode)),
+        )
+        .order_by(stats_updates::dsl::recorded_at.desc())
         .load(conn)
 }
 
 pub fn get_scores_for_user(
     conn: &PgConnection,
     user_id: i64,
+    mode: i16,
 ) -> Result<(Vec<Map>, Vec<DBScore>), diesel::result::Error> {
     use schema::{maps, scores};
 
     let scores: Vec<DBScore> = scores::table
-        .filter(scores::dsl::user_id.eq(user_id))
+        .filter(
+            scores::dsl::user_id
+                .eq(user_id)
+                .and(scores::dsl::mode.eq(mode)),
+        )
+        .order_by(scores::dsl::performance_rating.desc())
         .load(conn)?;
     let all_map_ids: Vec<i64> = scores.iter().map(|score| score.map_id).collect();
 
@@ -103,4 +117,40 @@ pub fn get_last_update_timestamp(
         .select(stats_updates::dsl::recorded_at)
         .first(conn)
         .optional()
+}
+
+pub fn get_user_id_by_username(
+    conn: &PgConnection,
+    username: &str,
+) -> Result<Option<i64>, diesel::result::Error> {
+    use schema::users;
+
+    users::table
+        .filter(users::dsl::username.eq(username))
+        .select(users::dsl::id)
+        .first(conn)
+        .optional()
+}
+
+pub fn get_username_by_user_id(
+    conn: &PgConnection,
+    user_id: i64,
+) -> Result<Option<String>, diesel::result::Error> {
+    use schema::users;
+
+    users::table
+        .find(user_id)
+        .select(users::dsl::username)
+        .first(conn)
+        .optional()
+}
+
+pub fn store_user(conn: &PgConnection, user: &APIUser) -> Result<(), diesel::result::Error> {
+    use schema::users;
+
+    let new_db_user: NewDBUser = user.clone().into();
+    diesel::insert_into(users::table)
+        .values(new_db_user)
+        .execute(conn)
+        .map(drop)
 }

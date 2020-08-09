@@ -26,5 +26,9 @@ export interface StatsUpdate {
   multiplayer_win_rank: number;
 }
 
-export const getStatsHistory = async (_key: string, username: string): Promise<StatsUpdate[]> =>
-  fetch(`/api/user/${username}/stats_history`).then((res) => res.json());
+export const getStatsHistory = async (
+  _key: string,
+  username: string,
+  mode: string
+): Promise<StatsUpdate[]> =>
+  fetch(`/api/user/${username}/${mode}/stats_history`).then((res) => res.json());

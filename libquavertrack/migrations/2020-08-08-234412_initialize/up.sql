@@ -1,8 +1,8 @@
 CREATE TABLE users (
   id BIGINT PRIMARY KEY,
   username TEXT NOT NULL,
-  steam_id TEXT NOT NULL,
-  time_registered TIMESTAMP NOT NULL,
+  steam_id TEXT,
+  time_registered TIMESTAMP,
   country VARCHAR(4) NOT NULL,
   avatar_url TEXT NOT NULL
 );

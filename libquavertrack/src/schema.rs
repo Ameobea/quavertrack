@@ -73,8 +73,8 @@ table! {
     users (id) {
         id -> Int8,
         username -> Text,
-        steam_id -> Text,
-        time_registered -> Timestamp,
+        steam_id -> Nullable<Text>,
+        time_registered -> Nullable<Timestamp>,
         country -> Varchar,
         avatar_url -> Text,
     }
