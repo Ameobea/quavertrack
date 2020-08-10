@@ -1,0 +1,7 @@
+backend/target
+libquavertrack/target
+Dockerfile
+.dockerignore
+LICENSE
+README.md
+frontend

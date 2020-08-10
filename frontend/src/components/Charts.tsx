@@ -163,7 +163,8 @@ const ScatterPlotInner: React.FC<{
   series: echarts.EChartOption.Series[];
   mobile: boolean;
   tooltipFormatter?: echarts.EChartOption.Tooltip.Formatter;
-}> = ({ series, mobile, tooltipFormatter }) => {
+  style?: React.CSSProperties;
+}> = ({ series, mobile, tooltipFormatter, style }) => {
   const option: echarts.EChartOption = useMemo(() => {
     return {
       ...getChartDefaults(mobile),
@@ -199,7 +200,7 @@ const ScatterPlotInner: React.FC<{
     <ReactEchartsCore
       echarts={echarts}
       option={option}
-      style={{ height: mobile ? 'max(30vh, 300px)' : 'max(45vh, 400px)' }}
+      style={{ height: mobile ? 'max(30vh, 300px)' : 'max(45vh, 400px)', ...(style || {}) }}
     />
   );
 };

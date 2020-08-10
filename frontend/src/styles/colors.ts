@@ -6,3 +6,4 @@ export const same = '#ddd';
 export const orange = '#ebac38';
 export const redOrange = '#cc6b33';
 export const brightYellow = '#f5f25d';
+export const brightPink = '#f42bff';

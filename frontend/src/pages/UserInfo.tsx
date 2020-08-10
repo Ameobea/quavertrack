@@ -4,7 +4,7 @@ import { useQuery } from 'react-query';
 import { Option } from 'funfix-core';
 import { Button, ButtonGroup } from '@blueprintjs/core';
 
-import { getHiscores, getStatsHistory, StatsUpdate, updateUser, Map } from '../api';
+import { getHiscores, getStatsHistory, StatsUpdate, updateUser, Map, Score } from '../api';
 import { TrendChart, getSeriesDefaults, ScatterPlot } from '../components/Charts';
 import * as colors from '../styles/colors';
 import LastUpdateChanges from '../components/LastUpdateChanges';
@@ -62,29 +62,46 @@ const UserInfo: React.FC = () => {
       return null;
     }
 
-    return [
-      {
-        type: 'scatter',
-        name: 'Hiscores',
-        data: hiscores.scores.map((score) => {
-          const color = ({
-            S: colors.brightYellow,
-            A: colors.increase,
-            B: colors.darkerEmphasis,
-            C: colors.orange,
-            D: colors.redOrange,
-            F: colors.decrease,
-          } as { [key: string]: any })[score.grade];
+    const groupedByGrade: {
+      [grade: string]: { score: Score; srcIx: number }[];
+    } = hiscores.scores.reduce((acc, score, srcIx) => {
+      if (!acc[score.grade]) {
+        acc[score.grade] = [];
+      }
+      acc[score.grade].push({ score, srcIx });
+      return acc;
+    }, {} as { [grade: string]: { score: Score; srcIx: number }[] });
 
-          return {
-            value: [new Date(score.time), score.performance_rating],
-            itemStyle: {
-              color,
-            },
-          } as any;
-        }),
-      },
-    ];
+    const RANKS = ['SS', 'S', 'A', 'B', 'C', 'D', 'F'];
+
+    return RANKS.map((grade) => {
+      const scores = groupedByGrade[grade] || [];
+
+      const color = ({
+        SS: colors.brightPink,
+        S: colors.brightYellow,
+        A: colors.increase,
+        B: colors.darkerEmphasis,
+        C: colors.orange,
+        D: colors.redOrange,
+        F: colors.decrease,
+      } as { [key: string]: any })[grade];
+
+      return {
+        type: 'scatter',
+        name: grade,
+        color,
+        data: scores.map(
+          ({ score, srcIx }) =>
+            ({
+              value: [new Date(score.time), score.performance_rating, srcIx],
+              itemStyle: {
+                color,
+              },
+            } as any)
+        ),
+      };
+    });
   }, [hiscores]);
   const [rankType, setRankType] = useState<'global_rank' | 'country_rank' | 'multiplayer_win_rank'>(
     'global_rank'
@@ -249,15 +266,18 @@ const UserInfo: React.FC = () => {
           series={hiscoresSeries}
           tooltipFormatter={(params_) => {
             const params = Array.isArray(params_) ? params_[0]! : params_;
-            const score = hiscores.scores[params.dataIndex!];
+            const score = hiscores.scores[(params.value! as any)[2]];
             const map: Map | undefined = hiscores.maps[score.map_id];
 
             return `<b>${map?.title || 'Unknown'} - ${
               map?.difficulty_name || 'Unknown'
-            }</b><br/>Mods: ${score.mods_string}<br/>Date Earned: ${new Date(
+            }</b><br/>Performance Rating: ${score.performance_rating}, Grade: ${
+              score.grade
+            }<br/>Mods: ${score.mods_string}<br/>Date Earned: ${new Date(
               score.time
-            ).toLocaleString()}<br/>Performance Rating: ${score.performance_rating}`;
+            ).toLocaleString()}`;
           }}
+          style={{ marginTop: 40, marginBottom: 60 }}
         />
       ) : (
         <div style={{ height: '30vh' }}>Loading...</div>
