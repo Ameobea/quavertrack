@@ -101,7 +101,8 @@ pub async fn get_user_id(
 
     // Hit the Quaver API to try to look this user up
     match api::lookup_user(user).await? {
-        Some(user) => {
+        Some(mut user) => {
+            user.username = user.username.to_lowercase();
             // Store user in DB
             db_util::store_user(&conn, &user)?;
 

@@ -75,5 +75,6 @@ module.exports = {
         target: 'http://localhost:8000/',
       },
     },
+    disableHostCheck: true,
   },
 };

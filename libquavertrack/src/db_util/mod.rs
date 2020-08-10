@@ -126,7 +126,7 @@ pub fn get_user_id_by_username(
     use schema::users;
 
     users::table
-        .filter(users::dsl::username.eq(username))
+        .filter(users::dsl::username.eq(username.to_lowercase()))
         .select(users::dsl::id)
         .first(conn)
         .optional()

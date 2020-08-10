@@ -4,8 +4,8 @@ import { useQuery } from 'react-query';
 import { Option } from 'funfix-core';
 import { Button, ButtonGroup } from '@blueprintjs/core';
 
-import { getStatsHistory, StatsUpdate, updateUser } from '../api';
-import TrendChart, { getSeriesDefaults } from '../components/TrendChart';
+import { getHiscores, getStatsHistory, StatsUpdate, updateUser, Map } from '../api';
+import { TrendChart, getSeriesDefaults, ScatterPlot } from '../components/Charts';
 import * as colors from '../styles/colors';
 import LastUpdateChanges from '../components/LastUpdateChanges';
 import LargeUserSearch from '../components/LargeUserSearch';
@@ -52,6 +52,40 @@ const UserInfo: React.FC = () => {
     queryFn: getStatsHistory,
     config: { refetchOnWindowFocus: false },
   });
+  const { data: hiscores } = useQuery({
+    queryKey: ['scoresHistory', username, mode],
+    queryFn: getHiscores,
+    config: { refetchOnWindowFocus: false },
+  });
+  const hiscoresSeries = useMemo(() => {
+    if (!hiscores) {
+      return null;
+    }
+
+    return [
+      {
+        type: 'scatter',
+        name: 'Hiscores',
+        data: hiscores.scores.map((score) => {
+          const color = ({
+            S: colors.brightYellow,
+            A: colors.increase,
+            B: colors.darkerEmphasis,
+            C: colors.orange,
+            D: colors.redOrange,
+            F: colors.decrease,
+          } as { [key: string]: any })[score.grade];
+
+          return {
+            value: [new Date(score.time), score.performance_rating],
+            itemStyle: {
+              color,
+            },
+          } as any;
+        }),
+      },
+    ];
+  }, [hiscores]);
   const [rankType, setRankType] = useState<'global_rank' | 'country_rank' | 'multiplayer_win_rank'>(
     'global_rank'
   );
@@ -208,6 +242,25 @@ const UserInfo: React.FC = () => {
         />
       ) : (
         <div style={{ minHeight: 100 }}>Loading...</div>
+      )}
+
+      {hiscores && hiscoresSeries ? (
+        <ScatterPlot
+          series={hiscoresSeries}
+          tooltipFormatter={(params_) => {
+            const params = Array.isArray(params_) ? params_[0]! : params_;
+            const score = hiscores.scores[params.dataIndex!];
+            const map: Map | undefined = hiscores.maps[score.map_id];
+
+            return `<b>${map?.title || 'Unknown'} - ${
+              map?.difficulty_name || 'Unknown'
+            }</b><br/>Mods: ${score.mods_string}<br/>Date Earned: ${new Date(
+              score.time
+            ).toLocaleString()}<br/>Performance Rating: ${score.performance_rating}`;
+          }}
+        />
+      ) : (
+        <div style={{ height: '30vh' }}>Loading...</div>
       )}
 
       {series ? (

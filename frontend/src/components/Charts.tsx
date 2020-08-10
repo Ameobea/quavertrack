@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import ReactEchartsCore from 'echarts-for-react/lib/core';
 import echarts from 'echarts/lib/echarts';
 import 'echarts/lib/chart/line';
+import 'echarts/lib/chart/scatter';
 import 'echarts/lib/component/tooltip';
 import 'echarts/lib/component/legend';
 import 'echarts/lib/component/dataZoom';
@@ -10,6 +11,7 @@ import dayjs from 'dayjs';
 
 import { withMobileProp } from './ResponsiveHelpers';
 import MobileZoomHandle from './MobileZoomHandle';
+import { PropTypesOf } from 'ameo-utils';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -51,7 +53,54 @@ export const getSeriesDefaults = () =>
     animation: false,
   } as const);
 
-const TrendChart: React.FC<{
+const getChartDefaults = (mobile: boolean) => ({
+  backgroundColor: '#1d2126',
+  legend: { show: true, textStyle: { color: '#fff' } },
+  grid: {
+    bottom: 75,
+    top: mobile ? 25 : 75,
+    left: mobile ? 17 : 75,
+    right: mobile ? 13 : 75,
+  },
+  tooltip: { trigger: 'axis' as const },
+  animation: true,
+  xAxis: [
+    {
+      type: 'time' as const,
+      splitNumber: mobile ? 7 : 20,
+      axisLabel: {
+        color: 'white',
+        showMinLabel: false,
+        showMaxLabel: false,
+        formatter: (value: string) => {
+          // Formatted to be month/day; display year only in the first label
+          const date = new Date(value);
+          return `${date.getMonth() + 1}/${date.getDate()}\n${date.getFullYear()}`;
+        },
+      },
+      axisPointer: { snap: false },
+      splitLine: {
+        lineStyle: { color: '#323232' },
+      },
+    },
+  ],
+  dataZoom: [
+    {
+      type: 'slider' as const,
+      show: true,
+      xAxisIndex: [0],
+      showDetail: true,
+      fillerColor: '#2d2f33',
+      bottom: 5,
+      textStyle: { color: '#fff' },
+      filterMode: 'none' as const,
+      realtime: false,
+      ...(mobile ? { handleIcon: MobileZoomHandle, handleSize: '80%' } : {}),
+    },
+  ],
+});
+
+const TrendChartInner: React.FC<{
   series: echarts.EChartOption.Series[];
   mobile: boolean;
   title: string;
@@ -61,16 +110,7 @@ const TrendChart: React.FC<{
     const { min, max, offset } = analyzeTimeSeries(series[0].data! as any);
 
     return {
-      backgroundColor: '#1d2126',
-      legend: { show: true, textStyle: { color: '#fff' } },
-      grid: {
-        bottom: 75,
-        top: mobile ? 25 : 75,
-        left: mobile ? 17 : 75,
-        right: mobile ? 13 : 75,
-      },
-      tooltip: { trigger: 'axis' as const },
-      animation: true,
+      ...getChartDefaults(mobile),
       graphic: mobile
         ? undefined
         : {
@@ -78,30 +118,10 @@ const TrendChart: React.FC<{
             top: 6,
             right: 6,
             style: {
-              text: 'robintrack.net',
+              text: 'quavertrack.net',
               fill: '#eee',
             },
           },
-      xAxis: [
-        {
-          type: 'time' as const,
-          splitNumber: mobile ? 7 : 20,
-          axisLabel: {
-            color: 'white',
-            showMinLabel: false,
-            showMaxLabel: false,
-            formatter: (value: string) => {
-              // Formatted to be month/day; display year only in the first label
-              const date = new Date(value);
-              return `${date.getMonth() + 1}/${date.getDate()}\n${date.getFullYear()}`;
-            },
-          },
-          axisPointer: { snap: false },
-          splitLine: {
-            lineStyle: { color: '#323232' },
-          },
-        },
-      ],
       yAxis: [
         {
           type: 'value' as const,
@@ -123,20 +143,6 @@ const TrendChart: React.FC<{
           inverse,
         },
       ],
-      dataZoom: [
-        {
-          type: 'slider' as const,
-          show: true,
-          xAxisIndex: [0],
-          showDetail: true,
-          fillerColor: '#2d2f33',
-          bottom: 5,
-          textStyle: { color: '#fff' },
-          filterMode: 'none' as const,
-          realtime: false,
-          ...(mobile ? { handleIcon: MobileZoomHandle, handleSize: '80%' } : {}),
-        },
-      ],
       title: { text: title },
       series,
     };
@@ -151,4 +157,53 @@ const TrendChart: React.FC<{
   );
 };
 
-export default withMobileProp({ maxDeviceWidth: 800 })(TrendChart);
+export const TrendChart = withMobileProp({ maxDeviceWidth: 800 })(TrendChartInner);
+
+const ScatterPlotInner: React.FC<{
+  series: echarts.EChartOption.Series[];
+  mobile: boolean;
+  tooltipFormatter?: echarts.EChartOption.Tooltip.Formatter;
+}> = ({ series, mobile, tooltipFormatter }) => {
+  const option: echarts.EChartOption = useMemo(() => {
+    return {
+      ...getChartDefaults(mobile),
+      tooltip: {
+        padding: 10,
+        borderWidth: 1,
+        formatter: tooltipFormatter,
+        extraCssText: 'text-align: left;',
+      },
+      yAxis: [
+        {
+          type: 'value' as const,
+          ...(mobile
+            ? { axisLabel: { show: false }, axisTick: { show: false } }
+            : {
+                axisLabel: {
+                  showMinLabel: false,
+                  showMaxLabel: false,
+                  color: 'white',
+                },
+              }),
+          splitNumber: mobile ? 7 : 10,
+          splitLine: {
+            lineStyle: { color: '#323232' },
+          },
+        },
+      ],
+      series,
+    };
+  }, [series, mobile, tooltipFormatter]);
+
+  return (
+    <ReactEchartsCore
+      echarts={echarts}
+      option={option}
+      style={{ height: mobile ? 'max(30vh, 300px)' : 'max(45vh, 400px)' }}
+    />
+  );
+};
+
+export const ScatterPlot = withMobileProp<PropTypesOf<typeof ScatterPlotInner>>({
+  maxDeviceWidth: 800,
+})(ScatterPlotInner);
