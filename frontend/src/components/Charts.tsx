@@ -59,7 +59,7 @@ const getChartDefaults = (mobile: boolean) => ({
   grid: {
     bottom: 75,
     top: mobile ? 25 : 75,
-    left: mobile ? 17 : 75,
+    left: mobile ? 27 : 75,
     right: mobile ? 13 : 75,
   },
   tooltip: { trigger: 'axis' as const },
@@ -165,8 +165,8 @@ const ScatterPlotInner: React.FC<{
   tooltipFormatter?: echarts.EChartOption.Tooltip.Formatter;
   style?: React.CSSProperties;
 }> = ({ series, mobile, tooltipFormatter, style }) => {
-  const option: echarts.EChartOption = useMemo(() => {
-    return {
+  const option: echarts.EChartOption = useMemo(
+    () => ({
       ...getChartDefaults(mobile),
       tooltip: {
         padding: 10,
@@ -177,15 +177,12 @@ const ScatterPlotInner: React.FC<{
       yAxis: [
         {
           type: 'value' as const,
-          ...(mobile
-            ? { axisLabel: { show: false }, axisTick: { show: false } }
-            : {
-                axisLabel: {
-                  showMinLabel: false,
-                  showMaxLabel: false,
-                  color: 'white',
-                },
-              }),
+          axisLabel: {
+            showMinLabel: false,
+            showMaxLabel: false,
+            color: 'white',
+            fontSize: mobile ? 10 : undefined,
+          },
           splitNumber: mobile ? 7 : 10,
           splitLine: {
             lineStyle: { color: '#323232' },
@@ -193,8 +190,9 @@ const ScatterPlotInner: React.FC<{
         },
       ],
       series,
-    };
-  }, [series, mobile, tooltipFormatter]);
+    }),
+    [series, mobile, tooltipFormatter]
+  );
 
   return (
     <ReactEchartsCore

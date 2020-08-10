@@ -12,6 +12,7 @@ import * as colors from '../styles/colors';
 import LastUpdateChanges from '../components/LastUpdateChanges';
 import LargeUserSearch from '../components/LargeUserSearch';
 import { withMobileOrDesktop } from '../components/ResponsiveHelpers';
+import './UserInfo.scss';
 
 const styles: { [key: string]: React.CSSProperties } = {
   root: {
@@ -80,7 +81,7 @@ function MobileModeSelector<T extends string>({ value, onChange, options }: Mode
         filterable={false}
         itemListRenderer={MobileModeSelectListRenderer}
       >
-        <Button text={activeItem.label} rightIcon='caret-down' />
+        <Button text={activeItem.label} rightIcon='chevron-down' />
       </ModeSelect>
     </div>
   );
@@ -164,10 +165,11 @@ const UserInfo: React.FC = () => {
         type: 'scatter',
         name: grade,
         color,
+        symbolSize: 5,
         data: scores.map(
           ({ score, srcIx }) =>
             ({
-              value: [new Date(score.time), score.performance_rating, srcIx],
+              value: [new Date(score.time), score.performance_rating * 100, srcIx],
               itemStyle: {
                 color,
               },
@@ -315,7 +317,7 @@ const UserInfo: React.FC = () => {
 
   if (statsUpdates === null) {
     return (
-      <div style={{ ...styles.root, ...styles.rootNotFound }}>
+      <div className='user-info' style={{ ...styles.root, ...styles.rootNotFound }}>
         <h1>User Not Found</h1>
         <LargeUserSearch />
       </div>
@@ -323,7 +325,7 @@ const UserInfo: React.FC = () => {
   }
 
   return (
-    <div style={styles.root}>
+    <div className='user-info' style={styles.root}>
       <div style={styles.globalSearchWrapper} className='bp3-input-group'>
         <span className='bp3-icon bp3-icon-search' />
         <input
