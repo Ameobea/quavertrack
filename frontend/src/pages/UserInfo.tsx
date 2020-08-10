@@ -3,12 +3,15 @@ import { useHistory, useRouteMatch } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { Option } from 'funfix-core';
 import { Button, ButtonGroup } from '@blueprintjs/core';
+import { Select, IItemRendererProps, IItemListRendererProps } from '@blueprintjs/select';
+import { Without } from 'ameo-utils';
 
 import { getHiscores, getStatsHistory, StatsUpdate, updateUser, Map, Score } from '../api';
 import { TrendChart, getSeriesDefaults, ScatterPlot } from '../components/Charts';
 import * as colors from '../styles/colors';
 import LastUpdateChanges from '../components/LastUpdateChanges';
 import LargeUserSearch from '../components/LargeUserSearch';
+import { withMobileOrDesktop } from '../components/ResponsiveHelpers';
 
 const styles: { [key: string]: React.CSSProperties } = {
   root: {
@@ -40,6 +43,76 @@ const styles: { [key: string]: React.CSSProperties } = {
 export enum Mode {
   K4 = '4k',
   K7 = '7k',
+}
+
+interface ModeSelectorProps<T extends string> {
+  value: T;
+  onChange: (newVal: T) => void;
+  options: { value: T; label: string }[];
+}
+
+function ModeSelectorButton<T extends string>(
+  { label }: { value: T; label: string },
+  { handleClick }: IItemRendererProps
+) {
+  return <Button onClick={handleClick}>{label}</Button>;
+}
+
+function MobileModeSelectListRenderer<T extends string>({
+  items,
+  renderItem,
+}: IItemListRendererProps<T>) {
+  return <ButtonGroup vertical>{items.map((item, i) => renderItem(item, i))}</ButtonGroup>;
+}
+
+function MobileModeSelector<T extends string>({ value, onChange, options }: ModeSelectorProps<T>) {
+  const ModeSelect = useMemo(() => Select.ofType<{ value: T; label: string }>(), []);
+
+  const activeItem = options.find((option) => option.value === value)!;
+
+  return (
+    <div style={{ display: 'flex' }}>
+      <ModeSelect
+        onItemSelect={({ value }) => onChange(value)}
+        items={options}
+        activeItem={activeItem}
+        itemRenderer={ModeSelectorButton}
+        filterable={false}
+        itemListRenderer={MobileModeSelectListRenderer}
+      >
+        <Button text={activeItem.label} rightIcon='caret-down' />
+      </ModeSelect>
+    </div>
+  );
+}
+
+function DesktopModeSelector<T extends string>({ value, options, onChange }: ModeSelectorProps<T>) {
+  return (
+    <ButtonGroup>
+      {options.map((option) => (
+        <Button
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          active={option.value === value}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </ButtonGroup>
+  );
+}
+
+function buildModeSelector<T extends string>(options: ModeSelectorProps<T>['options']) {
+  const Comp = withMobileOrDesktop<ModeSelectorProps<T>>(
+    { maxDeviceWidth: 800 },
+    MobileModeSelector,
+    DesktopModeSelector
+  );
+
+  const ModeSelector: React.FC<Without<ModeSelectorProps<T>, 'options'>> = (props) => (
+    <Comp options={options} {...props} />
+  );
+  return ModeSelector;
 }
 
 const UserInfo: React.FC = () => {
@@ -116,6 +189,31 @@ const UserInfo: React.FC = () => {
     | 'multiplayer_ties'
     | 'replays_watched'
   >('play_count');
+
+  const { RankModeSelector, ScoreModeSelector, PlaycountModeSelector } = useMemo(
+    () => ({
+      RankModeSelector: buildModeSelector([
+        { value: 'global_rank', label: 'Global Rank' },
+        { value: 'country_rank', label: 'Country Rank' },
+        { value: 'multiplayer_win_rank', label: 'Multiplayer Win Rank' },
+      ] as { value: typeof rankType; label: string }[]),
+      ScoreModeSelector: buildModeSelector([
+        { value: 'total_score', label: 'Total Score' },
+        { value: 'ranked_score', label: 'Ranked Score' },
+      ] as { value: typeof scoreType; label: string }[]),
+      PlaycountModeSelector: buildModeSelector([
+        { value: 'play_count', label: 'Playcount' },
+        { value: 'fail_count', label: 'Fail Count' },
+        { value: 'total_pauses', label: 'Total Pauses' },
+        { value: 'multiplayer_wins', label: 'Multiplayer Wins' },
+        { value: 'multiplayer_losses', label: 'Multiplayer Losses' },
+        { value: 'multiplayer_ties', label: 'Muiltiplayer Ties' },
+        { value: 'replays_watched', label: 'Replays Watched' },
+      ] as { value: typeof playcountType; label: string }[]),
+    }),
+    []
+  );
+
   const series: {
     rankSeries: echarts.EChartOption.Series[];
     scoreSeries: echarts.EChartOption.Series[];
@@ -285,23 +383,7 @@ const UserInfo: React.FC = () => {
 
       {series ? (
         <div style={styles.chartContainer}>
-          <ButtonGroup>
-            <Button onClick={() => setRankType('global_rank')} active={rankType === 'global_rank'}>
-              Global Rank
-            </Button>
-            <Button
-              onClick={() => setRankType('country_rank')}
-              active={rankType === 'country_rank'}
-            >
-              Country Rank
-            </Button>
-            <Button
-              onClick={() => setRankType('multiplayer_win_rank')}
-              active={rankType === 'multiplayer_win_rank'}
-            >
-              Multiplayer Win Rank
-            </Button>
-          </ButtonGroup>
+          <RankModeSelector value={rankType} onChange={setRankType} />
           <TrendChart series={series.rankSeries} inverse />
         </div>
       ) : (
@@ -309,20 +391,7 @@ const UserInfo: React.FC = () => {
       )}
       {series ? (
         <div style={styles.chartContainer}>
-          <ButtonGroup>
-            <Button
-              onClick={() => setScoreType('total_score')}
-              active={scoreType === 'total_score'}
-            >
-              Total Score
-            </Button>
-            <Button
-              onClick={() => setScoreType('ranked_score')}
-              active={scoreType === 'ranked_score'}
-            >
-              Ranked Score
-            </Button>
-          </ButtonGroup>
+          <ScoreModeSelector value={scoreType} onChange={setScoreType} />
           <TrendChart series={series.scoreSeries} />
         </div>
       ) : (
@@ -330,50 +399,7 @@ const UserInfo: React.FC = () => {
       )}
       {series ? (
         <div style={styles.chartContainer}>
-          <ButtonGroup>
-            <Button
-              onClick={() => setPlaycountType('play_count')}
-              active={playcountType === 'play_count'}
-            >
-              Playcount
-            </Button>
-            <Button
-              onClick={() => setPlaycountType('fail_count')}
-              active={playcountType === 'fail_count'}
-            >
-              Fail Count
-            </Button>
-            <Button
-              onClick={() => setPlaycountType('total_pauses')}
-              active={playcountType === 'total_pauses'}
-            >
-              Total Pauses
-            </Button>
-            <Button
-              onClick={() => setPlaycountType('multiplayer_wins')}
-              active={playcountType === 'multiplayer_wins'}
-            >
-              Multiplayer Wins
-            </Button>
-            <Button
-              onClick={() => setPlaycountType('multiplayer_losses')}
-              active={playcountType === 'multiplayer_losses'}
-            >
-              Multiplayer Losses
-            </Button>
-            <Button
-              onClick={() => setPlaycountType('multiplayer_ties')}
-              active={playcountType === 'multiplayer_ties'}
-            >
-              Multiplayer Ties
-            </Button>
-            <Button
-              onClick={() => setPlaycountType('replays_watched')}
-              active={playcountType === 'replays_watched'}
-            >
-              Replays Watched
-            </Button>
-          </ButtonGroup>
+          <PlaycountModeSelector value={playcountType} onChange={setPlaycountType} />
           <TrendChart series={series.playcountSeries} />
         </div>
       ) : (

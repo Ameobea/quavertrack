@@ -13,3 +13,16 @@ export function withMobileProp<T extends Record<string, any> & { mobile: boolean
     </MediaQuery>
   );
 }
+
+export function withMobileOrDesktop<T>(
+  mediaQueryProps: Record<string, any>,
+  MobileComponent: React.ComponentType<T>,
+  DesktopComponent: React.ComponentType<T>
+): React.FC<T> {
+  const WithMobileOrDesktop: React.FC<T> = (props: T) => (
+    <MediaQuery {...mediaQueryProps}>
+      {(mobile) => (mobile ? <MobileComponent {...props} /> : <DesktopComponent {...props} />)}
+    </MediaQuery>
+  );
+  return WithMobileOrDesktop;
+}
