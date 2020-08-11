@@ -13,6 +13,7 @@ import LastUpdateChanges from '../components/LastUpdateChanges';
 import LargeUserSearch from '../components/LargeUserSearch';
 import { withMobileOrDesktop } from '../components/ResponsiveHelpers';
 import './UserInfo.scss';
+import UserSearch from '../components/UserSearch';
 
 const styles: { [key: string]: React.CSSProperties } = {
   root: {
@@ -30,14 +31,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     justifyContent: 'flex-start',
     marginBottom: 60,
-  },
-  globalSearchWrapper: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  globalSearch: {
-    background: '#283030',
   },
 };
 
@@ -310,7 +303,6 @@ const UserInfo: React.FC = () => {
         }
       });
   }, [username]);
-  const [userSearchValue, setUserSearchValue] = useState('');
 
   if (mode !== '4k' && mode !== '7k') {
     history.push(`/user/${username}`);
@@ -328,27 +320,12 @@ const UserInfo: React.FC = () => {
 
   return (
     <div className='user-info' style={styles.root}>
-      <div style={styles.globalSearchWrapper} className='bp3-input-group'>
-        <span className='bp3-icon bp3-icon-search' />
-        <input
-          style={styles.globalSearch}
-          className='bp3-input'
-          value={userSearchValue}
-          onChange={(evt) => setUserSearchValue(evt.target.value)}
-          type='search'
-          placeholder='Search User'
-          size={14}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              setLastUpdate(null);
-              history.push(`/user/${userSearchValue}/${mode}`);
-              (e.target as any).blur();
-              setUserSearchValue('');
-            }
-          }}
-          dir='auto'
-        />
-      </div>
+      <UserSearch
+        onSubmit={(userSearchValue) => {
+          setLastUpdate(null);
+          history.push(`/user/${userSearchValue}/${mode}`);
+        }}
+      />
 
       <h1>
         {mode} Stats for {username}
