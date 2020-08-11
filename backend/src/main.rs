@@ -12,8 +12,12 @@ extern crate log;
 use diesel::pg::PgConnection;
 use libquavertrack::{
     api::{self, APIError},
-    db_util::{self, models::DBStatsUpdate},
+    db_util::{
+        self,
+        models::{DBScore, DBStatsUpdate, Map},
+    },
 };
+use serde::Serialize;
 use thiserror::Error;
 use tokio::task::block_in_place;
 
@@ -34,45 +38,75 @@ pub enum UpdateUserError {
     DBError(#[from] diesel::result::Error),
 }
 
+#[derive(Serialize)]
+pub struct UpdateData {
+    pub stats_4k: DBStatsUpdate,
+    pub stats_7k: DBStatsUpdate,
+    pub maps: Vec<Map>,
+    pub new_scores: Vec<DBScore>,
+}
+
 pub async fn update_user(
     conn: diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>,
     user_id: i64,
-) -> Result<[DBStatsUpdate; 2], UpdateUserError> {
-    // Fetch + store current stats for user
-    let user_stats = api::get_user_stats(user_id)
-        .await?
-        .ok_or(UpdateUserError::NotFound)?;
-    let [stats_4k, stats_7k] = block_in_place(|| db_util::store_stats_update(&conn, user_stats))
-        .map(|updates| {
-            let mut updates = updates.into_iter();
-            [updates.next().unwrap(), updates.next().unwrap()]
-        })?;
+) -> Result<UpdateData, UpdateUserError> {
+    let (user_stats, recent_4k_scores, best_4k_scores, recent_7k_scores, best_7k_scores) = tokio::try_join!(
+        async {
+            api::get_user_stats(user_id)
+                .await
+                .map_err(Into::into)
+                .and_then(|opt| opt.ok_or(UpdateUserError::NotFound))
+        },
+        async {
+            api::get_user_recent_scores(user_id, 1)
+                .await
+                .map_err(Into::into)
+                .and_then(|opt| opt.ok_or(UpdateUserError::NotFound))
+        },
+        async {
+            api::get_user_best_scores(user_id, 1)
+                .await
+                .map_err(Into::into)
+                .and_then(|opt| opt.ok_or(UpdateUserError::NotFound))
+        },
+        async {
+            api::get_user_recent_scores(user_id, 2)
+                .await
+                .map_err(Into::into)
+                .and_then(|opt| opt.ok_or(UpdateUserError::NotFound))
+        },
+        async {
+            api::get_user_best_scores(user_id, 2)
+                .await
+                .map_err(Into::into)
+                .and_then(|opt| opt.ok_or(UpdateUserError::NotFound))
+        },
+    )?;
 
-    // Fetch + store most recent 4k scores for user
-    let recent_4k_scores = api::get_user_recent_scores(user_id, 1)
-        .await?
-        .ok_or(UpdateUserError::NotFound)?;
-    block_in_place(|| db_util::store_scores(&conn, user_id, recent_4k_scores))?;
+    let all_api_scores = [
+        recent_4k_scores,
+        best_4k_scores,
+        recent_7k_scores,
+        best_7k_scores,
+    ]
+    .concat();
 
-    // Fetch + store best 4k scores for user
-    let best_4k_scores = api::get_user_best_scores(user_id, 1)
-        .await?
-        .ok_or(UpdateUserError::NotFound)?;
-    block_in_place(|| db_util::store_scores(&conn, user_id, best_4k_scores))?;
+    block_in_place(|| -> Result<UpdateData, UpdateUserError> {
+        let (maps, new_scores) = db_util::store_scores(&conn, user_id, all_api_scores)?;
 
-    // Fetch + store most recent 7k scores for user
-    let recent_7k_scores = api::get_user_recent_scores(user_id, 2)
-        .await?
-        .ok_or(UpdateUserError::NotFound)?;
-    block_in_place(|| db_util::store_scores(&conn, user_id, recent_7k_scores))?;
+        let [stats_4k, stats_7k] =
+            db_util::store_stats_update(&conn, user_stats).map(|updates| {
+                let mut updates = updates.into_iter();
+                [updates.next().unwrap(), updates.next().unwrap()]
+            })?;
 
-    // Fetch + store best 7k scores for user
-    let best_7k_scores = api::get_user_best_scores(user_id, 2)
-        .await?
-        .ok_or(UpdateUserError::NotFound)?;
-    block_in_place(|| db_util::store_scores(&conn, user_id, best_7k_scores))?;
-
-    Ok([stats_4k, stats_7k])
+        Ok(UpdateData {
+            stats_4k,
+            stats_7k,
+            maps,
+            new_scores,
+        })
+    })
 }
 
 pub async fn get_user_id(
@@ -104,7 +138,18 @@ pub async fn get_user_id(
         Some(mut user) => {
             user.username = user.username.to_lowercase();
             // Store user in DB
-            db_util::store_user(&conn, &user)?;
+            match db_util::store_user(&conn, &user) {
+                Ok(_) => Ok(()),
+                Err(diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => {
+                    // User probably doesn't exactly match the username, but we already have
+                    // an entry in there anyway so just return the ID
+                    Ok(())
+                }
+                Err(err) => Err(err),
+            }?;
 
             Ok((conn, Some((user.username, user.id))))
         }

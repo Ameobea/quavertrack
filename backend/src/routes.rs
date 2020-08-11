@@ -35,7 +35,7 @@ fn parse_mode(mode: &str) -> Result<i16, Status> {
 pub async fn update<'a>(
     user: String,
     conn: DbConn,
-) -> Result<Option<Json<[DBStatsUpdate; 2]>>, Status> {
+) -> Result<Option<Json<crate::UpdateData>>, Status> {
     let (conn, (_username, user_id)) = match crate::get_user_id(conn.0, &user)
         .await
         .map_err(stringify_internal_err)?

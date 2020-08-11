@@ -3,3 +3,4 @@ build/
 yarn-error.log
 dist
 .DS_Store
+.env

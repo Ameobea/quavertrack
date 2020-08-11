@@ -169,7 +169,7 @@ const UserInfo: React.FC = () => {
         data: scores.map(
           ({ score, srcIx }) =>
             ({
-              value: [new Date(score.time), score.performance_rating * 100, srcIx],
+              value: [new Date(score.time), score.performance_rating, srcIx],
               itemStyle: {
                 color,
               },
@@ -284,7 +284,9 @@ const UserInfo: React.FC = () => {
 
     // Trigger an update and get the most recent stats for the user and display
     updateUser(username)
-      .then(([update4k, update7k]) => setLastUpdate({ '4k': update4k, '7k': update7k }))
+      .then(({ stats_4k, stats_7k, new_scores, maps }) =>
+        setLastUpdate({ '4k': stats_4k, '7k': stats_7k })
+      )
       .catch((resCode: number) => {
         console.warn(`Code ${resCode} when updating user ${username}`);
         switch (resCode) {

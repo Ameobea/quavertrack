@@ -100,7 +100,14 @@ export const getHiscores = async (
       }, {} as { [id: number]: Map }),
     }));
 
-export const updateUser = (username: string): Promise<[StatsUpdate, StatsUpdate]> =>
+export interface UpdateData {
+  stats_4k: StatsUpdate;
+  stats_7k: StatsUpdate;
+  maps: Map[];
+  new_scores: Score[];
+}
+
+export const updateUser = (username: string): Promise<UpdateData> =>
   fetch(`/api/update/${username}`, { method: 'POST' }).then((res) => {
     if (res.ok) {
       return res.json();

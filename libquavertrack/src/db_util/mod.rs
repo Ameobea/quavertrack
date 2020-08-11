@@ -22,11 +22,11 @@ pub fn store_scores(
     conn: &PgConnection,
     user_id: i64,
     scores: Vec<APIScore>,
-) -> Result<(), diesel::result::Error> {
+) -> Result<(Vec<Map>, Vec<DBScore>), diesel::result::Error> {
     use schema::scores;
 
     let score_count = scores.len();
-    let (maps, db_scores): (Vec<Map>, Vec<DBScore>) = scores.into_iter().fold(
+    let (mut maps, db_scores): (Vec<Map>, Vec<DBScore>) = scores.into_iter().fold(
         (
             Vec::with_capacity(score_count),
             Vec::with_capacity(score_count),
@@ -40,13 +40,23 @@ pub fn store_scores(
         },
     );
 
+    maps.sort_unstable_by_key(|map| map.id);
+    maps.dedup_by_key(|map| map.id);
+
     store_maps(conn, &maps)?;
 
-    diesel::insert_into(scores::table)
+    let new_scores: Vec<DBScore> = diesel::insert_into(scores::table)
         .values(&db_scores)
         .on_conflict_do_nothing()
-        .execute(conn)
-        .map(drop)
+        .returning(scores::all_columns)
+        .get_results(conn)?;
+
+    Ok((
+        maps.into_iter()
+            .filter(|map| new_scores.iter().any(|score| score.map_id == map.id))
+            .collect(),
+        new_scores,
+    ))
 }
 
 pub fn store_stats_update(
