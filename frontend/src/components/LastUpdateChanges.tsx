@@ -6,7 +6,7 @@ import * as colors from '../styles/colors';
 import { Mode } from '../pages/UserInfo';
 import './LastUpdateChanges.scss';
 
-const NumberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+const NumberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 const formatNumber = (number: number) => {
   let magnitudeNum = number;

@@ -159,6 +159,8 @@ pub async fn get_user_id(
 
 #[tokio::main]
 pub async fn main() {
+    dotenv::dotenv().ok();
+
     rocket::ignite()
         .mount(
             "/api/",

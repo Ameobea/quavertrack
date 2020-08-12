@@ -4,7 +4,7 @@ import { useQuery } from 'react-query';
 import { Option } from 'funfix-core';
 import { Button, ButtonGroup } from '@blueprintjs/core';
 import { Select, IItemRendererProps, IItemListRendererProps } from '@blueprintjs/select';
-import { Without } from 'ameo-utils';
+import { PromiseResolveType, Without } from 'ameo-utils';
 
 import { getHiscores, getStatsHistory, StatsUpdate, updateUser, Map, Score } from '../api';
 import { TrendChart, getSeriesDefaults, ScatterPlot } from '../components/Charts';
@@ -109,6 +109,217 @@ function buildModeSelector<T extends string>(options: ModeSelectorProps<T>['opti
   return ModeSelector;
 }
 
+type RankType = 'global_rank' | 'country_rank' | 'multiplayer_win_rank';
+type ScoreType = 'total_score' | 'ranked_score';
+type PlaycountType =
+  | 'play_count'
+  | 'fail_count'
+  | 'total_pauses'
+  | 'multiplayer_wins'
+  | 'multiplayer_losses'
+  | 'multiplayer_ties'
+  | 'replays_watched';
+
+const { RankModeSelector, ScoreModeSelector, PlaycountModeSelector } = {
+  RankModeSelector: buildModeSelector([
+    { value: 'global_rank', label: 'Global Rank' },
+    { value: 'country_rank', label: 'Country Rank' },
+    { value: 'multiplayer_win_rank', label: 'Multiplayer Win Rank' },
+  ] as { value: RankType; label: string }[]),
+  ScoreModeSelector: buildModeSelector([
+    { value: 'total_score', label: 'Total Score' },
+    { value: 'ranked_score', label: 'Ranked Score' },
+  ] as { value: ScoreType; label: string }[]),
+  PlaycountModeSelector: buildModeSelector([
+    { value: 'play_count', label: 'Playcount' },
+    { value: 'fail_count', label: 'Fail Count' },
+    { value: 'total_pauses', label: 'Total Pauses' },
+    { value: 'multiplayer_wins', label: 'Multiplayer Wins' },
+    { value: 'multiplayer_losses', label: 'Multiplayer Losses' },
+    { value: 'multiplayer_ties', label: 'Muiltiplayer Ties' },
+    { value: 'replays_watched', label: 'Replays Watched' },
+  ] as { value: PlaycountType; label: string }[]),
+};
+
+const useSeries = ({
+  rankType,
+  scoreType,
+  playcountType,
+  statsUpdates,
+  lastUpdate,
+  mode,
+}: {
+  rankType: RankType;
+  scoreType: ScoreType;
+  playcountType: PlaycountType;
+  statsUpdates: StatsUpdate[] | null | undefined;
+  lastUpdate: {
+    '4k': StatsUpdate;
+    '7k': StatsUpdate;
+  } | null;
+  mode: '4k' | '7k';
+}) => {
+  const rankSeries = useMemo(() => {
+    if (!statsUpdates) {
+      return null;
+    }
+
+    const ret = {
+      ...getSeriesDefaults(),
+      name: {
+        global_rank: 'Global Rank',
+        country_rank: 'Country Rank',
+        multiplayer_win_rank: 'Multiplayer Win Rank',
+      }[rankType],
+      data: statsUpdates.map(
+        (update) => [new Date(update.recorded_at), update[rankType]] as const
+      ) as any,
+      lineStyle: { color: colors.emphasis },
+      itemStyle: { color: colors.emphasis, borderColor: '#fff' },
+    };
+
+    if (lastUpdate) {
+      ret.data.push([new Date(lastUpdate[mode].recorded_at), lastUpdate[mode][rankType]]);
+    }
+
+    return [ret];
+  }, [statsUpdates, rankType, lastUpdate, mode]);
+  const scoreSeries = useMemo(() => {
+    if (!statsUpdates) {
+      return null;
+    }
+
+    const ret = {
+      ...getSeriesDefaults(),
+      name: {
+        total_score: 'Total Score',
+        ranked_score: 'Ranked Score',
+      }[scoreType],
+      data: statsUpdates.map(
+        (update) => [new Date(update.recorded_at), update[scoreType]] as const
+      ) as any,
+      lineStyle: { color: colors.emphasis },
+      itemStyle: { color: colors.emphasis, borderColor: '#fff' },
+    };
+
+    if (lastUpdate) {
+      ret.data.push([new Date(lastUpdate[mode].recorded_at), lastUpdate[mode][scoreType]]);
+    }
+
+    return [ret];
+  }, [statsUpdates, scoreType, lastUpdate, mode]);
+  const playcountSeries = useMemo(() => {
+    if (!statsUpdates) {
+      return null;
+    }
+
+    const ret = {
+      ...getSeriesDefaults(),
+      name: {
+        play_count: 'Playcount',
+        fail_count: 'Fail Count',
+        total_pauses: 'Total Pauses',
+        multiplayer_wins: 'Multiplayer Wins',
+        multiplayer_losses: 'Multiplayer Losses',
+        multiplayer_ties: 'Multiplayer Ties',
+        replays_watched: 'Replays Watched',
+      }[playcountType],
+      data: statsUpdates.map(
+        (update) => [new Date(update.recorded_at), update[playcountType]] as const
+      ) as any,
+      lineStyle: { color: colors.emphasis },
+      itemStyle: { color: colors.emphasis, borderColor: '#fff' },
+    };
+
+    if (lastUpdate) {
+      ret.data.push([new Date(lastUpdate[mode].recorded_at), lastUpdate[mode][playcountType]]);
+    }
+
+    return [ret];
+  }, [statsUpdates, playcountType, lastUpdate, mode]);
+
+  return rankSeries && scoreSeries && playcountSeries
+    ? { rankSeries, scoreSeries, playcountSeries }
+    : null;
+};
+
+const GradesToColors: { [key: string]: any } = {
+  SS: colors.brightPink,
+  S: colors.brightYellow,
+  A: colors.increase,
+  B: colors.darkerEmphasis,
+  C: colors.orange,
+  D: colors.redOrange,
+  F: colors.decrease,
+};
+
+const getModeID = (mode: '4k' | '7k') => {
+  if (mode === '4k') {
+    return 1;
+  }
+  return 2;
+};
+
+const buildHiscoresSeries = (
+  hiscores: PromiseResolveType<ReturnType<typeof getHiscores>>,
+  lastUpdate: { '4k': StatsUpdate; '7k': StatsUpdate; newScores: Score[]; maps: Map[] } | null,
+  mode: '4k' | '7k'
+) => {
+  if (!hiscores) {
+    return null;
+  }
+
+  const groupedByGrade: {
+    [grade: string]: { score: Score; srcIx: number }[];
+  } = hiscores.scores.reduce((acc, score, srcIx) => {
+    if (!acc[score.grade]) {
+      acc[score.grade] = [];
+    }
+    acc[score.grade].push({ score, srcIx });
+    return acc;
+  }, {} as { [grade: string]: { score: Score; srcIx: number }[] });
+
+  const RANKS = ['SS', 'S', 'A', 'B', 'C', 'D', 'F'];
+
+  return RANKS.map((grade) => {
+    const scores = groupedByGrade[grade] || [];
+
+    const color = GradesToColors[grade];
+
+    const data = scores.map(
+      ({ score, srcIx }) =>
+        ({
+          value: [new Date(score.time), score.performance_rating, srcIx],
+          itemStyle: { color },
+        } as any)
+    );
+    const oldScoresCount = data.length;
+
+    if (lastUpdate) {
+      lastUpdate.newScores.forEach((score, ix) => {
+        if (score.mode === getModeID(mode) && score.grade === grade) {
+          data.push({
+            // Negative source indices refer to the series in `lastUpdate`
+            value: [new Date(score.time), score.performance_rating, -(ix + 1)],
+            // Add a special marker if this isn't the user's first update
+            symbol: oldScoresCount > 0 ? 'diamond' : undefined,
+            symbolSize: oldScoresCount > 0 ? 12 : undefined,
+            itemStyle: { color, borderColor: oldScoresCount > 0 ? '#fff' : undefined },
+          });
+        }
+      });
+    }
+
+    return {
+      type: 'scatter',
+      name: grade,
+      color,
+      symbolSize: 5,
+      data,
+    };
+  });
+};
+
 const UserInfo: React.FC = () => {
   const history = useHistory();
   const match = useRouteMatch<{ username: string; mode: string }>();
@@ -124,161 +335,42 @@ const UserInfo: React.FC = () => {
     queryFn: getHiscores,
     config: { refetchOnWindowFocus: false },
   });
-  const hiscoresSeries = useMemo(() => {
-    if (!hiscores) {
-      return null;
-    }
-
-    const groupedByGrade: {
-      [grade: string]: { score: Score; srcIx: number }[];
-    } = hiscores.scores.reduce((acc, score, srcIx) => {
-      if (!acc[score.grade]) {
-        acc[score.grade] = [];
-      }
-      acc[score.grade].push({ score, srcIx });
-      return acc;
-    }, {} as { [grade: string]: { score: Score; srcIx: number }[] });
-
-    const RANKS = ['SS', 'S', 'A', 'B', 'C', 'D', 'F'];
-
-    return RANKS.map((grade) => {
-      const scores = groupedByGrade[grade] || [];
-
-      const color = ({
-        SS: colors.brightPink,
-        S: colors.brightYellow,
-        A: colors.increase,
-        B: colors.darkerEmphasis,
-        C: colors.orange,
-        D: colors.redOrange,
-        F: colors.decrease,
-      } as { [key: string]: any })[grade];
-
-      return {
-        type: 'scatter',
-        name: grade,
-        color,
-        symbolSize: 5,
-        data: scores.map(
-          ({ score, srcIx }) =>
-            ({
-              value: [new Date(score.time), score.performance_rating, srcIx],
-              itemStyle: {
-                color,
-              },
-            } as any)
-        ),
-      };
-    });
-  }, [hiscores]);
-  const [rankType, setRankType] = useState<'global_rank' | 'country_rank' | 'multiplayer_win_rank'>(
-    'global_rank'
-  );
-  const [scoreType, setScoreType] = useState<'total_score' | 'ranked_score'>('total_score');
-  const [playcountType, setPlaycountType] = useState<
-    | 'play_count'
-    | 'fail_count'
-    | 'total_pauses'
-    | 'multiplayer_wins'
-    | 'multiplayer_losses'
-    | 'multiplayer_ties'
-    | 'replays_watched'
-  >('play_count');
-
-  const { RankModeSelector, ScoreModeSelector, PlaycountModeSelector } = useMemo(
-    () => ({
-      RankModeSelector: buildModeSelector([
-        { value: 'global_rank', label: 'Global Rank' },
-        { value: 'country_rank', label: 'Country Rank' },
-        { value: 'multiplayer_win_rank', label: 'Multiplayer Win Rank' },
-      ] as { value: typeof rankType; label: string }[]),
-      ScoreModeSelector: buildModeSelector([
-        { value: 'total_score', label: 'Total Score' },
-        { value: 'ranked_score', label: 'Ranked Score' },
-      ] as { value: typeof scoreType; label: string }[]),
-      PlaycountModeSelector: buildModeSelector([
-        { value: 'play_count', label: 'Playcount' },
-        { value: 'fail_count', label: 'Fail Count' },
-        { value: 'total_pauses', label: 'Total Pauses' },
-        { value: 'multiplayer_wins', label: 'Multiplayer Wins' },
-        { value: 'multiplayer_losses', label: 'Multiplayer Losses' },
-        { value: 'multiplayer_ties', label: 'Muiltiplayer Ties' },
-        { value: 'replays_watched', label: 'Replays Watched' },
-      ] as { value: typeof playcountType; label: string }[]),
-    }),
-    []
-  );
-
-  const series: {
-    rankSeries: echarts.EChartOption.Series[];
-    scoreSeries: echarts.EChartOption.Series[];
-    playcountSeries: echarts.EChartOption.Series[];
-  } | null = useMemo(() => {
-    if (!statsUpdates) {
-      return null;
-    }
-
-    return {
-      rankSeries: [
-        {
-          ...getSeriesDefaults(),
-          name: {
-            global_rank: 'Global Rank',
-            country_rank: 'Country Rank',
-            multiplayer_win_rank: 'Multiplayer Win Rank',
-          }[rankType],
-          data: statsUpdates.map(
-            (update) => [new Date(update.recorded_at), update[rankType]] as const
-          ) as any,
-          lineStyle: { color: colors.emphasis },
-          itemStyle: { color: colors.emphasis, borderColor: '#fff' },
-        },
-      ],
-      scoreSeries: [
-        {
-          ...getSeriesDefaults(),
-          name: {
-            total_score: 'Total Score',
-            ranked_score: 'Ranked Score',
-          }[scoreType],
-          data: statsUpdates.map(
-            (update) => [new Date(update.recorded_at), update[scoreType]] as const
-          ) as any,
-          lineStyle: { color: colors.emphasis },
-          itemStyle: { color: colors.emphasis, borderColor: '#fff' },
-        },
-      ],
-      playcountSeries: [
-        {
-          ...getSeriesDefaults(),
-          name: {
-            play_count: 'Playcount',
-            fail_count: 'Fail Count',
-            total_pauses: 'Total Pauses',
-            multiplayer_wins: 'Multiplayer Wins',
-            multiplayer_losses: 'Multiplayer Losses',
-            multiplayer_ties: 'Multiplayer Ties',
-            replays_watched: 'Replays Watched',
-          }[playcountType],
-          data: statsUpdates.map(
-            (update) => [new Date(update.recorded_at), update[playcountType]] as const
-          ) as any,
-          lineStyle: { color: colors.emphasis },
-          itemStyle: { color: colors.emphasis, borderColor: '#fff' },
-        },
-      ],
-    };
-  }, [statsUpdates, rankType, scoreType, playcountType]);
   const [lastUpdate, setLastUpdate] = useState<
-    null | { '4k': StatsUpdate; '7k': StatsUpdate } | { error: string }
+    | null
+    | { '4k': StatsUpdate; '7k': StatsUpdate; newScores: Score[]; maps: Map[] }
+    | { error: string }
   >(null);
+  const hiscoresSeries = useMemo(
+    () =>
+      hiscores
+        ? buildHiscoresSeries(
+            hiscores,
+            lastUpdate && '4k' in lastUpdate ? lastUpdate : null,
+            mode === '4k' || mode === '7k' ? mode : '4k'
+          )
+        : null,
+    [hiscores, lastUpdate, mode]
+  );
+  const [rankType, setRankType] = useState<RankType>('global_rank');
+  const [scoreType, setScoreType] = useState<ScoreType>('total_score');
+  const [playcountType, setPlaycountType] = useState<PlaycountType>('play_count');
+
+  const series = useSeries({
+    rankType,
+    scoreType,
+    playcountType,
+    statsUpdates,
+    lastUpdate: lastUpdate && '4k' in lastUpdate ? lastUpdate : null,
+    mode: mode === '4k' || mode === '7k' ? mode : '4k',
+  });
+
   useEffect(() => {
     setLastUpdate(null);
 
     // Trigger an update and get the most recent stats for the user and display
     updateUser(username)
       .then(({ stats_4k, stats_7k, new_scores, maps }) =>
-        setLastUpdate({ '4k': stats_4k, '7k': stats_7k })
+        setLastUpdate({ '4k': stats_4k, '7k': stats_7k, newScores: new_scores, maps })
       )
       .catch((resCode: number) => {
         console.warn(`Code ${resCode} when updating user ${username}`);
@@ -345,7 +437,12 @@ const UserInfo: React.FC = () => {
           series={hiscoresSeries}
           tooltipFormatter={(params_) => {
             const params = Array.isArray(params_) ? params_[0]! : params_;
-            const score = hiscores.scores[(params.value! as any)[2]];
+            const srcIx = (params.value! as any)[2];
+            // Negative source indices refer to the series in `lastUpdate`
+            const score =
+              srcIx < 0 && lastUpdate && 'newScores' in lastUpdate
+                ? lastUpdate.newScores[-(srcIx - 1)]
+                : hiscores.scores[srcIx];
             const map: Map | undefined = hiscores.maps[score.map_id];
 
             return `<b>${map?.title || 'Unknown'} - ${
