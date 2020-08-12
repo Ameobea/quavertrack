@@ -314,7 +314,7 @@ const buildHiscoresSeries = (
       type: 'scatter',
       name: grade,
       color,
-      symbolSize: 5,
+      symbolSize: 6.5,
       data,
     };
   });
@@ -441,9 +441,12 @@ const UserInfo: React.FC = () => {
             // Negative source indices refer to the series in `lastUpdate`
             const score =
               srcIx < 0 && lastUpdate && 'newScores' in lastUpdate
-                ? lastUpdate.newScores[-(srcIx - 1)]
+                ? lastUpdate.newScores[-(srcIx + 1)]
                 : hiscores.scores[srcIx];
-            const map: Map | undefined = hiscores.maps[score.map_id];
+            const map: Map | undefined =
+              srcIx < 0 && lastUpdate && 'newScores' in lastUpdate
+                ? lastUpdate.maps[score.map_id]
+                : hiscores.maps[score.map_id];
 
             return `<b>${map?.title || 'Unknown'} - ${
               map?.difficulty_name || 'Unknown'

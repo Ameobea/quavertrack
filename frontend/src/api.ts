@@ -25,6 +25,7 @@ export interface StatsUpdate {
   country_rank: number;
   multiplayer_win_rank: number;
 }
+
 export interface Map {
   id: number;
   mapset_id: number;
@@ -62,43 +63,29 @@ export interface Score {
   map_id: number;
 }
 
+const mapStatus = (res: Response) => {
+  if (res.ok) {
+    return res.json();
+  } else if (res.status === 404) {
+    return null;
+  }
+
+  throw res.status;
+};
+
 export const getStatsHistory = async (
   _key: string,
   user: string,
   mode: string
 ): Promise<StatsUpdate[] | null> =>
-  fetch(`/api/user/${user}/${mode}/stats_history`).then((res) => {
-    if (res.ok) {
-      return res.json();
-    } else if (res.status === 404) {
-      return null;
-    }
-
-    throw res.status;
-  });
+  fetch(`/api/user/${user}/${mode}/stats_history`).then(mapStatus);
 
 export const getHiscores = async (
   _key: string,
   user: string,
   mode: string
 ): Promise<{ maps: { [id: number]: Map }; scores: Score[] }> =>
-  fetch(`/api/user/${user}/${mode}/scores`)
-    .then((res) => {
-      if (res.ok) {
-        return res.json();
-      } else if (res.status === 404) {
-        return null;
-      }
-
-      throw res.status;
-    })
-    .then(({ scores, maps }: { maps: Map[]; scores: Score[] }) => ({
-      scores,
-      maps: maps.reduce((acc, score) => {
-        acc[score.id] = score;
-        return acc;
-      }, {} as { [id: number]: Map }),
-    }));
+  fetch(`/api/user/${user}/${mode}/scores`).then(mapStatus);
 
 export interface UpdateData {
   stats_4k: StatsUpdate;
@@ -108,10 +95,4 @@ export interface UpdateData {
 }
 
 export const updateUser = (username: string): Promise<UpdateData> =>
-  fetch(`/api/update/${username}`, { method: 'POST' }).then((res) => {
-    if (res.ok) {
-      return res.json();
-    }
-
-    throw res.status;
-  });
+  fetch(`/api/update/${username}`, { method: 'POST' }).then(mapStatus);

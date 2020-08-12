@@ -10,6 +10,7 @@ extern crate log;
 
 // use rocket_contrib::compression::Compression;
 use diesel::pg::PgConnection;
+use fnv::FnvHashMap as HashMap;
 use libquavertrack::{
     api::{self, APIError},
     db_util::{
@@ -42,7 +43,7 @@ pub enum UpdateUserError {
 pub struct UpdateData {
     pub stats_4k: DBStatsUpdate,
     pub stats_7k: DBStatsUpdate,
-    pub maps: Vec<Map>,
+    pub maps: HashMap<i64, Map>,
     pub new_scores: Vec<DBScore>,
 }
 
@@ -94,6 +95,11 @@ pub async fn update_user(
     block_in_place(|| -> Result<UpdateData, UpdateUserError> {
         let (maps, new_scores) = db_util::store_scores(&conn, user_id, all_api_scores)?;
 
+        let mut maps_by_id = HashMap::default();
+        for map in maps {
+            maps_by_id.insert(map.id, map);
+        }
+
         let [stats_4k, stats_7k] =
             db_util::store_stats_update(&conn, user_stats).map(|updates| {
                 let mut updates = updates.into_iter();
@@ -103,7 +109,7 @@ pub async fn update_user(
         Ok(UpdateData {
             stats_4k,
             stats_7k,
-            maps,
+            maps: maps_by_id,
             new_scores,
         })
     })

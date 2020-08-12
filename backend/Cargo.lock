@@ -1139,6 +1139,7 @@ dependencies = [
  "chrono",
  "diesel",
  "dotenv",
+ "fnv",
  "libquavertrack",
  "log",
  "rocket",

@@ -15,5 +15,6 @@ serde = "1"
 serde_json = "1"
 thiserror = "1.0"
 dotenv = "0.15"
+fnv = "1.0"
 
 libquavertrack = { path = "../libquavertrack" }

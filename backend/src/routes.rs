@@ -1,4 +1,5 @@
 use chrono::{offset::Utc, DateTime, NaiveDateTime};
+use fnv::FnvHashMap as HashMap;
 use libquavertrack::db_util::{self, models::DBStatsUpdate};
 use rocket::http::Status;
 use rocket_contrib::json::Json;
@@ -101,7 +102,15 @@ pub async fn get_scores(
     let (maps, scores) =
         db_util::get_scores_for_user(&conn, user_id, mode).map_err(stringify_diesel_err)?;
 
-    Ok(Some(Json(GetScoresResponse { maps, scores })))
+    let mut maps_by_id = HashMap::default();
+    for map in maps {
+        maps_by_id.insert(map.id, map);
+    }
+
+    Ok(Some(Json(GetScoresResponse {
+        maps: maps_by_id,
+        scores,
+    })))
 }
 
 #[get("/user/<user>/<mode>/stats_history")]
