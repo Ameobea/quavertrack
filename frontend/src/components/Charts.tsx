@@ -67,12 +67,27 @@ const getChartDefaults = (mobile: boolean) => ({
     formatter: (
       params_: echarts.EChartOption.Tooltip.Format | echarts.EChartOption.Tooltip.Format[]
     ) => {
-      const params = Array.isArray(params_) ? params_[0] : params_;
-      const [date, val]: [Date, number] = params.data!;
-      return `${date.toLocaleString(undefined, { timeZoneName: 'short' })}<br/>${
-        params.seriesName
-      }: ${val.toLocaleString()}`;
+      const params = Array.isArray(params_) ? params_ : [params_];
+      params.reverse();
+      const formattedParams = params.map((param) => {
+        const [, val]: [Date, number] = param.data!;
+
+        return `${param.seriesName}: ${
+          params.length > 1
+            ? (val * 100).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }) + '%'
+            : val.toLocaleString()
+        }`;
+      });
+
+      const date = params[0]!.data![0];
+      return `${date.toLocaleString(undefined, {
+        timeZoneName: 'short',
+      })}<br/>${formattedParams.join('<br/>')}`;
     },
+    extraCssText: 'text-align: left;',
   },
   animation: true,
   xAxis: [
@@ -116,9 +131,13 @@ const TrendChartInner: React.FC<{
   mobile: boolean;
   title: string;
   inverse: boolean;
-}> = ({ series, mobile, title, inverse }) => {
+  style?: React.CSSProperties;
+  stackedArea?: boolean;
+}> = ({ series, mobile, title, inverse, style = {}, stackedArea }) => {
   const option = useMemo((): echarts.EChartOption => {
-    const { min, max, offset } = analyzeTimeSeries(series[0].data! as any);
+    const { min, max, offset } = stackedArea
+      ? { min: undefined, max: undefined, offset: undefined }
+      : analyzeTimeSeries(series[0].data! as any);
 
     return {
       ...getChartDefaults(mobile),
@@ -149,21 +168,22 @@ const TrendChartInner: React.FC<{
           splitLine: {
             lineStyle: { color: '#323232' },
           },
-          min: min - offset,
-          max: max + offset,
+          min: typeof min !== 'undefined' ? min - offset! : undefined,
+          max: typeof max !== 'undefined' ? max + offset! : undefined,
           inverse,
         },
       ],
       title: { text: title },
       series,
     };
-  }, [series, mobile, title, inverse]);
+  }, [series, mobile, title, inverse, stackedArea]);
 
   return (
     <ReactEchartsCore
       echarts={echarts}
       option={option}
-      style={{ height: mobile ? 'max(30vh, 300px)' : 'max(45vh, 400px)' }}
+      notMerge={stackedArea !== undefined}
+      style={{ height: mobile ? 'max(30vh, 300px)' : 'max(45vh, 400px)', ...style }}
     />
   );
 };

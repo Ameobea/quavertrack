@@ -1,6 +1,4 @@
 export interface StatsUpdate {
-  id: number;
-  user_id: number;
   recorded_at: string;
   mode: number;
   total_score: number;
@@ -28,14 +26,9 @@ export interface StatsUpdate {
 
 export interface Map {
   id: number;
-  mapset_id: number;
-  md5: string;
   artist: string;
   title: string;
   difficulty_name: string;
-  creator_id: number;
-  creator_username: string;
-  ranked_status: number;
 }
 
 export interface Score {

@@ -7,13 +7,18 @@ use crate::db_util::schema::{maps, scores, stats_updates, users};
 #[table_name = "maps"]
 pub struct Map {
     pub id: i64,
+    #[serde(skip_serializing)]
     pub mapset_id: i64,
+    #[serde(skip_serializing)]
     pub md5: String,
     pub artist: String,
     pub title: String,
     pub difficulty_name: String,
+    #[serde(skip_serializing)]
     pub creator_id: i64,
+    #[serde(skip_serializing)]
     pub creator_username: String,
+    #[serde(skip_serializing)]
     pub ranked_status: i16,
 }
 
@@ -80,10 +85,12 @@ pub struct DBScore {
     pub user_id: i64,
     pub time: NaiveDateTime,
     pub mode: i16,
+    #[serde(skip_serializing)]
     pub mods: i64,
     pub mods_string: String,
     pub performance_rating: f32,
     pub personal_best: bool,
+    #[serde(skip_serializing)]
     pub is_donator_score: Option<bool>,
     pub total_score: i64,
     pub accuracy: f32,
@@ -276,7 +283,9 @@ pub struct NewDBStatsUpdate {
 
 #[derive(Queryable, Serialize)]
 pub struct DBStatsUpdate {
+    #[serde(skip_serializing)]
     pub id: i32,
+    #[serde(skip_serializing)]
     pub user_id: i64,
     pub recorded_at: NaiveDateTime,
     pub mode: i16,

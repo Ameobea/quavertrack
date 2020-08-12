@@ -8,7 +8,6 @@ extern crate tokio;
 #[macro_use]
 extern crate log;
 
-// use rocket_contrib::compression::Compression;
 use diesel::pg::PgConnection;
 use fnv::FnvHashMap as HashMap;
 use libquavertrack::{
@@ -18,6 +17,7 @@ use libquavertrack::{
         models::{DBScore, DBStatsUpdate, Map},
     },
 };
+// use rocket_contrib::compression::Compression;
 use serde::Serialize;
 use thiserror::Error;
 use tokio::task::block_in_place;

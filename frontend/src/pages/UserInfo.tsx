@@ -14,6 +14,7 @@ import LargeUserSearch from '../components/LargeUserSearch';
 import { withMobileOrDesktop } from '../components/ResponsiveHelpers';
 import './UserInfo.scss';
 import UserSearch from '../components/UserSearch';
+import GlobalModeSelector from '../components/GlobalModeSelector';
 
 const styles: { [key: string]: React.CSSProperties } = {
   root: {
@@ -31,6 +32,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
     justifyContent: 'flex-start',
     marginBottom: 60,
+  },
+  headerWrapper: {
+    display: 'flex',
+    flexDirection: 'row',
+    flex: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 };
 
@@ -119,8 +127,9 @@ type PlaycountType =
   | 'multiplayer_losses'
   | 'multiplayer_ties'
   | 'replays_watched';
+type AccType = 'overall_accuracy' | 'hit_distribution';
 
-const { RankModeSelector, ScoreModeSelector, PlaycountModeSelector } = {
+const { RankModeSelector, ScoreModeSelector, PlaycountModeSelector, AccModeSelector } = {
   RankModeSelector: buildModeSelector([
     { value: 'global_rank', label: 'Global Rank' },
     { value: 'country_rank', label: 'Country Rank' },
@@ -139,12 +148,17 @@ const { RankModeSelector, ScoreModeSelector, PlaycountModeSelector } = {
     { value: 'multiplayer_ties', label: 'Muiltiplayer Ties' },
     { value: 'replays_watched', label: 'Replays Watched' },
   ] as { value: PlaycountType; label: string }[]),
+  AccModeSelector: buildModeSelector([
+    { value: 'overall_accuracy', label: 'Overall Accuracy' },
+    { value: 'hit_distribution', label: 'Non-Marv Hit Distribution' },
+  ] as { value: AccType; label: string }[]),
 };
 
 const useSeries = ({
   rankType,
   scoreType,
   playcountType,
+  accType,
   statsUpdates,
   lastUpdate,
   mode,
@@ -152,6 +166,7 @@ const useSeries = ({
   rankType: RankType;
   scoreType: ScoreType;
   playcountType: PlaycountType;
+  accType: AccType;
   statsUpdates: StatsUpdate[] | null | undefined;
   lastUpdate: {
     '4k': StatsUpdate;
@@ -240,9 +255,114 @@ const useSeries = ({
 
     return [ret];
   }, [statsUpdates, playcountType, lastUpdate, mode]);
+  const accSeries = useMemo(() => {
+    if (!statsUpdates) {
+      return null;
+    }
 
-  return rankSeries && scoreSeries && playcountSeries
-    ? { rankSeries, scoreSeries, playcountSeries }
+    if (accType === 'overall_accuracy') {
+      const ret = {
+        ...getSeriesDefaults(),
+        name: 'Overall Accuracy',
+        data: statsUpdates.map(
+          (update) => [new Date(update.recorded_at + 'Z'), update.overall_accuracy] as const
+        ) as any,
+        lineStyle: { color: colors.emphasis },
+        itemStyle: { color: colors.emphasis, borderColor: '#fff' },
+      };
+
+      if (lastUpdate) {
+        ret.data.push([
+          new Date(lastUpdate[mode].recorded_at + 'Z'),
+          lastUpdate[mode].overall_accuracy,
+        ]);
+      }
+
+      return [ret];
+    }
+
+    type Datum = [Date, number];
+    const { marv, great, good, okay, miss } = statsUpdates.reduce(
+      (acc, update) => {
+        const date = new Date(update.recorded_at + 'Z');
+        const totalHits =
+          update.total_marv +
+          update.total_great +
+          update.total_good +
+          update.total_okay +
+          update.total_miss;
+
+        acc.marv.push([date, update.total_marv / totalHits]);
+        acc.great.push([date, update.total_great / totalHits]);
+        acc.good.push([date, update.total_good / totalHits]);
+        acc.okay.push([date, update.total_okay / totalHits]);
+        acc.miss.push([date, update.total_miss / totalHits]);
+
+        return acc;
+      },
+      { marv: [], great: [], good: [], okay: [], miss: [] } as {
+        marv: Datum[];
+        great: Datum[];
+        good: Datum[];
+        okay: Datum[];
+        miss: Datum[];
+      }
+    );
+
+    if (lastUpdate) {
+      const date = new Date(lastUpdate[mode].recorded_at + 'Z');
+      const totalHits =
+        lastUpdate[mode].total_marv +
+        lastUpdate[mode].total_great +
+        lastUpdate[mode].total_good +
+        lastUpdate[mode].total_okay +
+        lastUpdate[mode].total_miss;
+
+      marv.push([date, lastUpdate[mode].total_marv / totalHits]);
+      great.push([date, lastUpdate[mode].total_great / totalHits]);
+      good.push([date, lastUpdate[mode].total_good / totalHits]);
+      okay.push([date, lastUpdate[mode].total_okay / totalHits]);
+      miss.push([date, lastUpdate[mode].total_miss / totalHits]);
+    }
+
+    const seriesDefaults = {
+      ...getSeriesDefaults(),
+      stack: 'stack',
+      areaStyle: {},
+      yAxisIndex: 0,
+      lineStyle: { width: 0 },
+    };
+
+    return [
+      {
+        ...seriesDefaults,
+        name: 'Miss',
+        data: miss,
+        color: colors.decrease,
+      },
+      {
+        ...seriesDefaults,
+        name: 'Okay',
+        data: okay,
+        color: colors.orange,
+      },
+      {
+        ...seriesDefaults,
+        name: 'Good',
+        data: good,
+        color: colors.brightYellow,
+      },
+      {
+        ...seriesDefaults,
+        name: 'Great',
+        data: great,
+        color: colors.increase,
+      },
+    ];
+  }, [statsUpdates, lastUpdate, mode, accType]);
+
+  return rankSeries && scoreSeries && playcountSeries && accSeries
+    ? { rankSeries, scoreSeries, playcountSeries, accSeries }
     : null;
 };
 
@@ -331,12 +451,12 @@ const UserInfo: React.FC = () => {
   const { data: statsUpdates } = useQuery({
     queryKey: ['statsHistory', username, mode],
     queryFn: getStatsHistory,
-    config: { refetchOnWindowFocus: false },
+    config: { refetchOnWindowFocus: false, staleTime: 40 * 1000 },
   });
   const { data: hiscores } = useQuery({
     queryKey: ['scoresHistory', username, mode],
     queryFn: getHiscores,
-    config: { refetchOnWindowFocus: false },
+    config: { refetchOnWindowFocus: false, staleTime: 40 * 1000 },
   });
   const [lastUpdate, setLastUpdate] = useState<
     | null
@@ -357,6 +477,7 @@ const UserInfo: React.FC = () => {
   const [rankType, setRankType] = useState<RankType>('global_rank');
   const [scoreType, setScoreType] = useState<ScoreType>('total_score');
   const [playcountType, setPlaycountType] = useState<PlaycountType>('play_count');
+  const [accType, setAccType] = useState<AccType>('overall_accuracy');
 
   const series = useSeries({
     rankType,
@@ -365,6 +486,7 @@ const UserInfo: React.FC = () => {
     statsUpdates,
     lastUpdate: lastUpdate && '4k' in lastUpdate ? lastUpdate : null,
     mode: mode === '4k' || mode === '7k' ? mode : '4k',
+    accType,
   });
 
   useEffect(() => {
@@ -400,7 +522,7 @@ const UserInfo: React.FC = () => {
   }, [username]);
 
   if (mode !== '4k' && mode !== '7k') {
-    history.push(`/user/${username}`);
+    history.push(`/user/${username}/4k`);
     return null;
   }
 
@@ -422,14 +544,15 @@ const UserInfo: React.FC = () => {
         }}
       />
 
-      <h1>
-        {mode} Stats for {username}
-      </h1>
+      <div style={styles.headerWrapper}>
+        <GlobalModeSelector />
+        <h1>Stats for {username}</h1>
+      </div>
       {statsUpdates ? (
         <LastUpdateChanges
           lastUpdate={Option.of(statsUpdates[statsUpdates.length - 1]).orNull()}
           newUpdate={lastUpdate}
-          mode={mode in Mode ? (mode as Mode) : Mode.K4}
+          mode={mode === '4k' || mode === '7k' ? (mode as Mode) : Mode.K4}
         />
       ) : (
         <div style={{ minHeight: 100 }}>Loading...</div>
@@ -469,6 +592,14 @@ const UserInfo: React.FC = () => {
         <div style={styles.chartContainer}>
           <RankModeSelector value={rankType} onChange={setRankType} />
           <TrendChart series={series.rankSeries} inverse />
+        </div>
+      ) : (
+        <div style={{ height: '30vh' }}>Loading...</div>
+      )}
+      {series ? (
+        <div style={styles.chartContainer}>
+          <AccModeSelector value={accType} onChange={setAccType} />
+          <TrendChart series={series.accSeries} stackedArea={accType === 'hit_distribution'} />
         </div>
       ) : (
         <div style={{ height: '30vh' }}>Loading...</div>
