@@ -172,14 +172,14 @@ const useSeries = ({
         multiplayer_win_rank: 'Multiplayer Win Rank',
       }[rankType],
       data: statsUpdates.map(
-        (update) => [new Date(update.recorded_at), update[rankType]] as const
+        (update) => [new Date(update.recorded_at + 'Z'), update[rankType]] as const
       ) as any,
       lineStyle: { color: colors.emphasis },
       itemStyle: { color: colors.emphasis, borderColor: '#fff' },
     };
 
     if (lastUpdate) {
-      ret.data.push([new Date(lastUpdate[mode].recorded_at), lastUpdate[mode][rankType]]);
+      ret.data.push([new Date(lastUpdate[mode].recorded_at + 'Z'), lastUpdate[mode][rankType]]);
     }
 
     return [ret];
@@ -196,14 +196,14 @@ const useSeries = ({
         ranked_score: 'Ranked Score',
       }[scoreType],
       data: statsUpdates.map(
-        (update) => [new Date(update.recorded_at), update[scoreType]] as const
+        (update) => [new Date(update.recorded_at + 'Z'), update[scoreType]] as const
       ) as any,
       lineStyle: { color: colors.emphasis },
       itemStyle: { color: colors.emphasis, borderColor: '#fff' },
     };
 
     if (lastUpdate) {
-      ret.data.push([new Date(lastUpdate[mode].recorded_at), lastUpdate[mode][scoreType]]);
+      ret.data.push([new Date(lastUpdate[mode].recorded_at + 'Z'), lastUpdate[mode][scoreType]]);
     }
 
     return [ret];
@@ -225,14 +225,17 @@ const useSeries = ({
         replays_watched: 'Replays Watched',
       }[playcountType],
       data: statsUpdates.map(
-        (update) => [new Date(update.recorded_at), update[playcountType]] as const
+        (update) => [new Date(update.recorded_at + 'Z'), update[playcountType]] as const
       ) as any,
       lineStyle: { color: colors.emphasis },
       itemStyle: { color: colors.emphasis, borderColor: '#fff' },
     };
 
     if (lastUpdate) {
-      ret.data.push([new Date(lastUpdate[mode].recorded_at), lastUpdate[mode][playcountType]]);
+      ret.data.push([
+        new Date(lastUpdate[mode].recorded_at + 'Z'),
+        lastUpdate[mode][playcountType],
+      ]);
     }
 
     return [ret];
@@ -289,7 +292,7 @@ const buildHiscoresSeries = (
     const data = scores.map(
       ({ score, srcIx }) =>
         ({
-          value: [new Date(score.time), score.performance_rating, srcIx],
+          value: [new Date(score.time + 'Z'), score.performance_rating, srcIx],
           itemStyle: { color },
         } as any)
     );
@@ -300,7 +303,7 @@ const buildHiscoresSeries = (
         if (score.mode === getModeID(mode) && score.grade === grade) {
           data.push({
             // Negative source indices refer to the series in `lastUpdate`
-            value: [new Date(score.time), score.performance_rating, -(ix + 1)],
+            value: [new Date(score.time + 'Z'), score.performance_rating, -(ix + 1)],
             // Add a special marker if this isn't the user's first update
             symbol: oldScoresCount > 0 ? 'diamond' : undefined,
             symbolSize: oldScoresCount > 0 ? 12 : undefined,
@@ -453,8 +456,8 @@ const UserInfo: React.FC = () => {
             }</b><br/>Performance Rating: ${score.performance_rating}, Grade: ${
               score.grade
             }<br/>Mods: ${score.mods_string}<br/>Date Earned: ${new Date(
-              score.time
-            ).toLocaleString()}`;
+              score.time + 'Z'
+            ).toLocaleString(undefined, { timeZoneName: 'short' })}`;
           }}
           style={{ marginTop: 40, marginBottom: 60 }}
         />

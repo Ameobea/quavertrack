@@ -22,7 +22,10 @@
     <meta property="og:image" content="https://quavertrack.net/quavertrack.png" />
     <meta property="og:image:width" content="1024" />
     <meta property="og:image:height" content="1024" />
-    <meta property="og:image:alt" content="A blue music note on a dark background; the Quavertrack logo" />
+    <meta
+      property="og:image:alt"
+      content="A blue music note on a dark background; the Quavertrack logo"
+    />
     <meta property="og:twitter:card" content="summary" />
     <meta name="twitter:title" content="Quavertrack" />
     <meta
@@ -30,16 +33,26 @@
       content="Quavertrack lets you view your progression over time by recording your stats periodically and showing trends via charts + other visualizations"
     />
 
+    <!-- Sentry -->
+    <script
+      src="https://browser.sentry-cdn.com/5.5.0/bundle.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      Sentry.init({ dsn: 'http://192d61f688434a9cab611addefd619df@104.225.217.211:8080/2' });
+    </script>
+
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-175024927-1"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
+      function gtag() {
+        dataLayer.push(arguments);
+      }
       gtag('js', new Date());
 
       gtag('config', 'UA-175024927-1');
     </script>
-
 
     <style>
       body {

@@ -62,7 +62,18 @@ const getChartDefaults = (mobile: boolean) => ({
     left: mobile ? 27 : 75,
     right: mobile ? 13 : 75,
   },
-  tooltip: { trigger: 'axis' as const },
+  tooltip: {
+    trigger: 'axis' as const,
+    formatter: (
+      params_: echarts.EChartOption.Tooltip.Format | echarts.EChartOption.Tooltip.Format[]
+    ) => {
+      const params = Array.isArray(params_) ? params_[0] : params_;
+      const [date, val]: [Date, number] = params.data!;
+      return `${date.toLocaleString(undefined, { timeZoneName: 'short' })}<br/>${
+        params.seriesName
+      }: ${val.toLocaleString()}`;
+    },
+  },
   animation: true,
   xAxis: [
     {
@@ -72,7 +83,7 @@ const getChartDefaults = (mobile: boolean) => ({
         color: 'white',
         showMinLabel: false,
         showMaxLabel: false,
-        formatter: (value: string) => {
+        formatter: (value: number) => {
           // Formatted to be month/day; display year only in the first label
           const date = new Date(value);
           return `${date.getMonth() + 1}/${date.getDate()}\n${date.getFullYear()}`;
@@ -106,7 +117,7 @@ const TrendChartInner: React.FC<{
   title: string;
   inverse: boolean;
 }> = ({ series, mobile, title, inverse }) => {
-  const option = useMemo(() => {
+  const option = useMemo((): echarts.EChartOption => {
     const { min, max, offset } = analyzeTimeSeries(series[0].data! as any);
 
     return {

@@ -6,9 +6,7 @@ import * as colors from '../styles/colors';
 import { Mode } from '../pages/UserInfo';
 import './LastUpdateChanges.scss';
 
-const NumberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
-
-const formatNumber = (number: number) => {
+const formatNumber = (number: number, decimals = 0) => {
   let magnitudeNum = number;
   let suffix = '';
 
@@ -23,15 +21,16 @@ const formatNumber = (number: number) => {
     magnitudeNum /= 1000;
   }
 
-  const formatted = NumberFormatter.format(magnitudeNum);
+  const formatted = magnitudeNum.toLocaleString(undefined, { maximumFractionDigits: decimals });
   return `${formatted}${suffix}`;
 };
 
-const Diff: React.FC<{ before: number; after: number; invert?: boolean }> = ({
-  before,
-  after,
-  invert,
-}) => {
+const Diff: React.FC<{
+  before: number;
+  after: number;
+  invert?: boolean;
+  decimals?: number;
+}> = ({ before, after, invert, decimals }) => {
   const diff = after - before;
   const color =
     after === before
@@ -43,7 +42,7 @@ const Diff: React.FC<{ before: number; after: number; invert?: boolean }> = ({
   return (
     <span style={{ color }}>
       {diff >= 0 ? '+' : null}
-      {formatNumber(diff)}
+      {formatNumber(diff, decimals)}
     </span>
   );
 };
@@ -53,11 +52,13 @@ const ChangeCell: React.FC<{
   before: number;
   after: number;
   invert?: boolean;
-}> = ({ label, ...rest }) => (
+  decimals?: number;
+}> = ({ label, decimals, ...rest }) => (
   <div className='change-cell'>
     <div style={{ fontWeight: 'bold' }}>{label}:</div>
     <div>
-      {formatNumber(rest.before)}⭢{formatNumber(rest.after)} (<Diff {...rest} />)
+      {formatNumber(rest.before, decimals)}⭢{formatNumber(rest.after, decimals)} (<Diff {...rest} />
+      )
     </div>
   </div>
 );
@@ -114,6 +115,7 @@ const LastUpdateChanges: React.FC<{
           label='Overall Performance Rating'
           before={lastUpdate.overall_performance_rating}
           after={newModeUpdate.overall_performance_rating}
+          decimals={3}
         />
         <ChangeCell
           label='Country Rank'
@@ -136,6 +138,7 @@ const LastUpdateChanges: React.FC<{
           label='Overall Accuracy'
           before={lastUpdate.overall_accuracy}
           after={newModeUpdate.overall_accuracy}
+          decimals={3}
         />
         <ChangeCell
           label='Total Score'
