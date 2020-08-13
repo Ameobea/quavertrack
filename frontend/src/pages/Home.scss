@@ -1,0 +1,41 @@
+.home {
+  display: flex;
+  flex-direction: column;
+
+  .bp3-callout {
+    margin-top: 50px;
+    max-width: 80vw;
+    margin-left: 10vw;
+    margin-right: 10vw;
+    padding-top: 20px;
+    padding-right: 42px;
+    padding-left: 42px;
+  }
+
+  h1 {
+    font-size: 36px;
+    text-align: center;
+  }
+
+  p {
+    font-size: 18px;
+    text-align: left;
+  }
+}
+
+@media screen and (max-width: 800px) {
+  .home {
+    .bp3-callout {
+      svg {
+        display: none;
+      }
+
+      padding-right: 16px;
+      padding-left: 16px;
+    }
+
+    p {
+      font-size: 15px;
+    }
+  }
+}

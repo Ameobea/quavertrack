@@ -54,10 +54,14 @@ interface ModeSelectorProps<T extends string> {
 }
 
 function ModeSelectorButton<T extends string>(
-  { label }: { value: T; label: string },
+  { value, label }: { value: T; label: string },
   { handleClick }: IItemRendererProps
 ) {
-  return <Button onClick={handleClick}>{label}</Button>;
+  return (
+    <Button key={value} onClick={handleClick}>
+      {label}
+    </Button>
+  );
 }
 
 function MobileModeSelectListRenderer<T extends string>({
