@@ -164,3 +164,14 @@ pub fn store_user(conn: &PgConnection, user: &APIUser) -> Result<(), diesel::res
         .execute(conn)
         .map(drop)
 }
+
+pub fn get_least_recently_updated_user_id(
+    conn: &PgConnection,
+) -> Result<i64, diesel::result::Error> {
+    use schema::users;
+
+    users::table
+        .order_by(users::dsl::last_updated_at.asc().nulls_last())
+        .select(users::dsl::id)
+        .first(conn)
+}

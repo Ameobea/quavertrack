@@ -8,7 +8,8 @@ extern crate tokio;
 #[macro_use]
 extern crate log;
 
-use diesel::pg::PgConnection;
+use chrono::offset::Utc;
+use diesel::{pg::PgConnection, prelude::*};
 use fnv::FnvHashMap as HashMap;
 use libquavertrack::{
     api::{self, APIError},
@@ -93,6 +94,8 @@ pub async fn update_user(
     .concat();
 
     block_in_place(|| -> Result<UpdateData, UpdateUserError> {
+        use crate::db_util::schema::users;
+
         let (maps, new_scores) = db_util::store_scores(&conn, user_id, all_api_scores)?;
 
         let mut maps_by_id = HashMap::default();
@@ -105,6 +108,11 @@ pub async fn update_user(
                 let mut updates = updates.into_iter();
                 [updates.next().unwrap(), updates.next().unwrap()]
             })?;
+
+        let now = Utc::now().naive_utc();
+        diesel::update(users::table.filter(users::dsl::id.eq(user_id)))
+            .set(users::dsl::last_updated_at.eq(now))
+            .execute(&conn)?;
 
         Ok(UpdateData {
             stats_4k,
@@ -173,7 +181,8 @@ pub async fn main() {
             routes![
                 routes::update,
                 routes::get_stats_history,
-                routes::get_scores
+                routes::get_scores,
+                routes::update_oldest
             ],
         )
         .attach(DbConn::fairing())

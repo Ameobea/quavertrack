@@ -77,6 +77,7 @@ table! {
         time_registered -> Nullable<Timestamp>,
         country -> Varchar,
         avatar_url -> Text,
+        last_updated_at -> Nullable<Timestamp>,
     }
 }
 

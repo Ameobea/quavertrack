@@ -133,3 +133,21 @@ pub async fn get_stats_history(
 
     Ok(Some(Json(updates)))
 }
+
+#[post("/update_oldest")]
+pub async fn update_oldest(conn: DbConn) -> Result<String, Status> {
+    let user_id_to_update =
+        tokio::task::block_in_place(|| crate::db_util::get_least_recently_updated_user_id(&conn))
+            .map_err(|err| {
+            error!("Error updating oldest user: {:?}", err);
+            Status::new(500, "Internal error while updating oldest user")
+        })?;
+    crate::update_user(conn.0, user_id_to_update)
+        .await
+        .map_err(|err| {
+            error!("Error updating oldest user: {:?}", err);
+            Status::new(500, "Internal error while updating oldest user")
+        })?;
+
+    Ok(format!("Updated user id {}", user_id_to_update))
+}
