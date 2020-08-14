@@ -1,5 +1,5 @@
 docker-build-backend:
-  docker build -t ameo/quavertrack-backend .
+  docker build --build-arg UPDATE_TOKEN=$UPDATE_TOKEN -t ameo/quavertrack-backend .
 
 deploy:
   just docker-build-backend
@@ -14,4 +14,4 @@ deploy:
     --image gcr.io/free-tier-164405/quavertrack-backend:latest
 
   cd frontend && yarn build && just deploy
-  
+

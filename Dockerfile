@@ -7,6 +7,7 @@ RUN update-ca-certificates
 RUN curl https://sh.rustup.rs/ -sSf | \
   sh -s -- -y --default-toolchain nightly-2020-08-08
 
+ARG UPDATE_TOKEN
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 ADD . /root
