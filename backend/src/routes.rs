@@ -134,8 +134,12 @@ pub async fn get_stats_history(
     Ok(Some(Json(updates)))
 }
 
-#[post("/update_oldest")]
-pub async fn update_oldest(conn: DbConn) -> Result<String, Status> {
+#[post("/update_oldest?<token>")]
+pub async fn update_oldest(conn: DbConn, token: String) -> Result<String, Status> {
+    if token.as_str() != env!("UPDATE_TOKEN") {
+        return Err(Status::new(401, "Invalid update token provided"));
+    }
+
     let user_id_to_update =
         tokio::task::block_in_place(|| crate::db_util::get_least_recently_updated_user_id(&conn))
             .map_err(|err| {
