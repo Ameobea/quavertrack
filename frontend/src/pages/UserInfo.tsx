@@ -183,25 +183,43 @@ const useSeries = ({
       return null;
     }
 
-    const ret = {
-      ...getSeriesDefaults(),
-      name: {
-        global_rank: 'Global Rank',
-        country_rank: 'Country Rank',
-        multiplayer_win_rank: 'Multiplayer Win Rank',
-      }[rankType],
-      data: statsUpdates.map(
-        (update) => [new Date(update.recorded_at + 'Z'), update[rankType]] as const
-      ) as any,
-      lineStyle: { color: colors.emphasis },
-      itemStyle: { color: colors.emphasis, borderColor: '#fff' },
-    };
+    const ret = [
+      {
+        ...getSeriesDefaults(),
+        name: {
+          global_rank: 'Global Rank',
+          country_rank: 'Country Rank',
+          multiplayer_win_rank: 'Multiplayer Win Rank',
+        }[rankType],
+        data: statsUpdates.map(
+          (update) => [new Date(update.recorded_at + 'Z'), update[rankType]] as const
+        ) as any,
+        lineStyle: { color: colors.emphasis },
+        itemStyle: { color: colors.emphasis, borderColor: '#fff' },
+      },
+      {
+        ...getSeriesDefaults(),
+        name: 'Overall Performance Rating',
+        data: statsUpdates.map((update) => [
+          new Date(update.recorded_at + 'Z'),
+          update.overall_performance_rating,
+        ]),
+        lineStyle: { color: colors.brightYellow },
+        itemStyle: { color: colors.brightYellow, borderColor: '#fff' },
+        yAxisIndex: 1,
+      },
+    ];
 
     if (lastUpdate) {
-      ret.data.push([new Date(lastUpdate[mode].recorded_at + 'Z'), lastUpdate[mode][rankType]]);
+      ret[0].data.push([new Date(lastUpdate[mode].recorded_at + 'Z'), lastUpdate[mode][rankType]]);
+
+      ret[1].data.push([
+        new Date(lastUpdate[mode].recorded_at + 'Z'),
+        lastUpdate[mode].overall_performance_rating,
+      ]);
     }
 
-    return [ret];
+    return ret;
   }, [statsUpdates, rankType, lastUpdate, mode]);
   const scoreSeries = useMemo(() => {
     if (!statsUpdates) {

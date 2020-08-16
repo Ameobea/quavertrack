@@ -57,7 +57,7 @@ const ChangeCell: React.FC<{
   <div className='change-cell'>
     <div style={{ fontWeight: 'bold' }}>{label}:</div>
     <div>
-      {formatNumber(rest.before, decimals)}⭢{formatNumber(rest.after, decimals)} (
+      {formatNumber(rest.before, decimals)}&rarr;{formatNumber(rest.after, decimals)} (
       <Diff decimals={decimals} {...rest} />)
     </div>
   </div>

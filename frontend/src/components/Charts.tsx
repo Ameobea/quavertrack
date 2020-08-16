@@ -53,7 +53,7 @@ export const getSeriesDefaults = () =>
     animation: false,
   } as const);
 
-const getChartDefaults = (mobile: boolean) => ({
+const getChartDefaults = (mobile: boolean, stackedArea: boolean | undefined) => ({
   backgroundColor: '#1d2126',
   legend: { show: true, textStyle: { color: '#fff' } },
   grid: {
@@ -73,7 +73,7 @@ const getChartDefaults = (mobile: boolean) => ({
         const [, val]: [Date, number] = param.data!;
 
         return `${param.seriesName}: ${
-          params.length > 1
+          params.length > 1 && stackedArea
             ? (val * 100).toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -139,8 +139,50 @@ const TrendChartInner: React.FC<{
       ? { min: undefined, max: undefined, offset: undefined }
       : analyzeTimeSeries(series[0].data! as any);
 
+    const baseYAxis: echarts.EChartOption.YAxis = {
+      type: 'value' as const,
+      ...(mobile
+        ? { axisLabel: { show: false }, axisTick: { show: false } }
+        : {
+            axisLabel: {
+              showMinLabel: false,
+              showMaxLabel: false,
+              color: 'white',
+            },
+          }),
+      splitNumber: mobile ? 7 : 10,
+      splitLine: {
+        lineStyle: { color: '#323232' },
+      },
+      min: typeof min !== 'undefined' ? min - offset! : undefined,
+      max: typeof max !== 'undefined' ? max + offset! : undefined,
+      inverse,
+      name: series[0].name,
+      nameLocation: inverse ? 'start' : 'end',
+      nameTextStyle: {
+        color: '#ddd',
+      },
+    };
+
+    const yAxis = [baseYAxis];
+
+    if (series.length > 1 && !stackedArea) {
+      const { min, max, offset } = stackedArea
+        ? { min: undefined, max: undefined, offset: undefined }
+        : analyzeTimeSeries(series[1].data! as any);
+
+      yAxis.push({
+        ...baseYAxis,
+        min: typeof min !== 'undefined' ? min - offset! : undefined,
+        max: typeof max !== 'undefined' ? max + offset! : undefined,
+        inverse: false,
+        name: series[1].name,
+        nameLocation: 'end',
+      });
+    }
+
     return {
-      ...getChartDefaults(mobile),
+      ...getChartDefaults(mobile, stackedArea),
       graphic: mobile
         ? undefined
         : {
@@ -152,27 +194,7 @@ const TrendChartInner: React.FC<{
               fill: '#eee',
             },
           },
-      yAxis: [
-        {
-          type: 'value' as const,
-          ...(mobile
-            ? { axisLabel: { show: false }, axisTick: { show: false } }
-            : {
-                axisLabel: {
-                  showMinLabel: false,
-                  showMaxLabel: false,
-                  color: 'white',
-                },
-              }),
-          splitNumber: mobile ? 7 : 10,
-          splitLine: {
-            lineStyle: { color: '#323232' },
-          },
-          min: typeof min !== 'undefined' ? min - offset! : undefined,
-          max: typeof max !== 'undefined' ? max + offset! : undefined,
-          inverse,
-        },
-      ],
+      yAxis,
       title: { text: title },
       series,
     };
@@ -198,7 +220,7 @@ const ScatterPlotInner: React.FC<{
 }> = ({ series, mobile, tooltipFormatter, style }) => {
   const option: echarts.EChartOption = useMemo(
     () => ({
-      ...getChartDefaults(mobile),
+      ...getChartDefaults(mobile, false),
       tooltip: {
         padding: 10,
         borderWidth: 1,
