@@ -51,8 +51,14 @@ pub struct UpdateData {
 pub async fn update_user(
     conn: diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>,
     user_id: i64,
-) -> Result<UpdateData, UpdateUserError> {
-    let (user_stats, recent_4k_scores, best_4k_scores, recent_7k_scores, best_7k_scores) = tokio::try_join!(
+) -> Result<
+    UpdateData,
+    (
+        UpdateUserError,
+        diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>,
+    ),
+> {
+    let (user_stats, recent_4k_scores, best_4k_scores, recent_7k_scores, best_7k_scores) = match tokio::try_join!(
         async {
             api::get_user_stats(user_id)
                 .await
@@ -83,7 +89,10 @@ pub async fn update_user(
                 .map_err(Into::into)
                 .and_then(|opt| opt.ok_or(UpdateUserError::NotFound))
         },
-    )?;
+    ) {
+        Ok(res) => res,
+        Err(err) => return Err((err, conn)),
+    };
 
     let all_api_scores = [
         recent_4k_scores,
@@ -93,18 +102,20 @@ pub async fn update_user(
     ]
     .concat();
 
-    block_in_place(|| -> Result<UpdateData, UpdateUserError> {
+    block_in_place(|| -> Result<UpdateData, (UpdateUserError, diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<PgConnection>>)> {
         use crate::db_util::schema::users;
 
-        let (maps, new_scores) = db_util::store_scores(&conn, user_id, all_api_scores)?;
+        let do_inner = || -> Result<_, diesel::result::Error> {
+        let (maps, new_scores) =
+            db_util::store_scores(&conn, user_id, all_api_scores)?;
 
         let mut maps_by_id = HashMap::default();
         for map in maps {
             maps_by_id.insert(map.id, map);
         }
 
-        let [stats_4k, stats_7k] =
-            db_util::store_stats_update(&conn, user_stats).map(|updates| {
+        let [stats_4k, stats_7k] = db_util::store_stats_update(&conn, user_stats)
+            .map(|updates| {
                 let mut updates = updates.into_iter();
                 [updates.next().unwrap(), updates.next().unwrap()]
             })?;
@@ -113,6 +124,12 @@ pub async fn update_user(
         diesel::update(users::table.filter(users::dsl::id.eq(user_id)))
             .set(users::dsl::last_updated_at.eq(now))
             .execute(&conn)?;
+
+            Ok((stats_4k, stats_7k, maps_by_id, new_scores))
+        };
+
+
+        let (stats_4k, stats_7k, maps_by_id, new_scores) = do_inner().map_err(|err| (err.into(), conn))?;
 
         Ok(UpdateData {
             stats_4k,

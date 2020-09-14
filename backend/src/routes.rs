@@ -73,10 +73,10 @@ pub async fn update<'a>(
 
     let stats_update = match crate::update_user(conn, user_id).await {
         Ok(stats_update) => Ok(stats_update),
-        Err(crate::UpdateUserError::NotFound) => return Ok(None),
+        Err((crate::UpdateUserError::NotFound, _)) => return Ok(None),
         Err(err) => Err(err),
     }
-    .map_err(|err| {
+    .map_err(|(err, _)| {
         error!("Error updating user: {:?}", err);
         Status::new(500, "Error updating user; internal error")
     })?;
@@ -146,12 +146,28 @@ pub async fn update_oldest(conn: DbConn, token: String) -> Result<String, Status
             error!("Error updating oldest user: {:?}", err);
             Status::new(500, "Internal error while updating oldest user")
         })?;
-    crate::update_user(conn.0, user_id_to_update)
-        .await
-        .map_err(|err| {
-            error!("Error updating oldest user: {:?}", err);
-            Status::new(500, "Internal error while updating oldest user")
-        })?;
+    if let Err((err, conn)) = crate::update_user(conn.0, user_id_to_update).await {
+        error!("Error updating oldest user: {:?}", err);
+        return Err(match err {
+            crate::UpdateUserError::NotFound => {
+                tokio::task::block_in_place(|| {
+                    use crate::db_util::schema::users;
+                    use diesel::prelude::*;
+
+                    let now = Utc::now().naive_utc();
+                    diesel::update(users::table.filter(users::dsl::id.eq(user_id_to_update)))
+                        .set(users::dsl::last_updated_at.eq(now))
+                        .execute(&conn)
+                })
+                .map_err(|err| {
+                    error!("Error updating oldest user: {:?}", err);
+                    Status::new(500, "Internal error while updating oldest user")
+                })?;
+                Status::new(404, "User not found from Quaver API")
+            }
+            _ => Status::new(500, "Internal error while updating oldest user"),
+        });
+    }
 
     Ok(format!("Updated user id {}", user_id_to_update))
 }
