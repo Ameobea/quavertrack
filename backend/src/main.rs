@@ -18,7 +18,7 @@ use libquavertrack::{
         models::{DBScore, DBStatsUpdate, Map},
     },
 };
-// use rocket_contrib::compression::Compression;
+use rocket_contrib::compression::Compression;
 use serde::Serialize;
 use thiserror::Error;
 use tokio::task::block_in_place;
@@ -186,7 +186,7 @@ pub async fn main() {
             ],
         )
         .attach(DbConn::fairing())
-        // .attach(Compression::fairing())
+        .attach(Compression::fairing())
         .launch()
         .await
         .expect("Failed to launch Rocket");
