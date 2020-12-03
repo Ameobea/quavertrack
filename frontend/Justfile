@@ -1,2 +1,2 @@
 deploy:
-  rsync -Prv -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -F /dev/null" ./dist/* root@quavertrack.net:/var/www/quavertrack
+  rsync -Prv -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -F /dev/null" ./dist/* debian@quavertrack.ameo.dev:/var/www/quavertrack.net

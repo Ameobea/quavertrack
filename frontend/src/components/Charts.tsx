@@ -218,6 +218,7 @@ const ScatterPlotInner: React.FC<{
   tooltipFormatter?: echarts.EChartOption.Tooltip.Formatter;
   style?: React.CSSProperties;
 }> = ({ series, mobile, tooltipFormatter, style }) => {
+  throw new Error('test error');
   const option: echarts.EChartOption = useMemo(
     () => ({
       ...getChartDefaults(mobile, false),
