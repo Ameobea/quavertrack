@@ -42,7 +42,10 @@ pub async fn update<'a>(
         .map_err(stringify_internal_err)?
     {
         (conn, Some(user_id)) => (conn, user_id),
-        (_conn, None) => return Ok(None),
+        (_conn, None) => {
+            warn!("No user found in DB with username={}", user);
+            return Ok(None);
+        }
     };
 
     let last_update_time: Option<NaiveDateTime> =
@@ -73,7 +76,10 @@ pub async fn update<'a>(
 
     let stats_update = match crate::update_user(conn, user_id).await {
         Ok(stats_update) => Ok(stats_update),
-        Err((crate::UpdateUserError::NotFound, _)) => return Ok(None),
+        Err((crate::UpdateUserError::NotFound, _)) => {
+            error!("User not found when performing update");
+            return Ok(None);
+        }
         Err(err) => Err(err),
     }
     .map_err(|(err, _)| {
