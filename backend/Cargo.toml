@@ -5,10 +5,10 @@ authors = ["Casey Primozic <casey@cprimozic.net>"]
 edition = "2018"
 
 [dependencies]
-rocket = { git = "https://github.com/ameobea/Rocket.git" }
-rocket_contrib = { git = "https://github.com/ameobea/Rocket.git", features = ["json", "diesel_postgres_pool", "compression"] }
+rocket = { git = "https://github.com/SergioBenitez/Rocket.git", rev = "786db9b832b7edd91f143b24835677c69121a9bb", features = ["json"] }
+rocket_sync_db_pools = { git = "https://github.com/SergioBenitez/Rocket.git", rev = "786db9b832b7edd91f143b24835677c69121a9bb", features = ["diesel_postgres_pool"]}
 diesel = { version = "1.4", features = ["chrono", "postgres"] }
-tokio = { version = "0.2", features = ["macros", "rt-threaded", "rt-util", "time", "blocking"] }
+tokio = { version = "1.32", features = ["macros", "time"] }
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
 serde = "1"

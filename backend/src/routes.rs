@@ -2,23 +2,23 @@ use chrono::{offset::Utc, DateTime, NaiveDateTime};
 use fnv::FnvHashMap as HashMap;
 use libquavertrack::db_util::{self, models::DBStatsUpdate};
 use rocket::http::Status;
-use rocket_contrib::json::Json;
-use tokio::task::block_in_place;
+use rocket::response::status;
+use rocket::serde::json::Json;
 
 use crate::models::GetScoresResponse;
 use crate::DbConn;
 
-fn stringify_diesel_err(err: diesel::result::Error) -> Status {
+fn stringify_diesel_err(err: diesel::result::Error) -> status::Custom<&'static str> {
     error!("Error querying DB: {:?}", err);
-    Status::new(500, "Error querying database")
+    status::Custom(Status::InternalServerError, "Error querying database")
 }
 
-fn stringify_internal_err(err: crate::UpdateUserError) -> Status {
+fn stringify_internal_err(err: crate::UpdateUserError) -> status::Custom<&'static str> {
     error!("Error doing some internal operation: {:?}", err);
-    Status::new(500, "Internal server error")
+    status::Custom(Status::InternalServerError, "Internal server error")
 }
 
-fn parse_mode(mode: &str) -> Result<i16, Status> {
+fn parse_mode(mode: &str) -> Result<i16, status::Custom<&'static str>> {
     match mode {
         "1" => Ok(1),
         "2" => Ok(2),
@@ -28,29 +28,30 @@ fn parse_mode(mode: &str) -> Result<i16, Status> {
         "7k" => Ok(2),
         "k4" => Ok(1),
         "k7" => Ok(2),
-        _ => Err(Status::new(400, "Invalid mode provided")),
+        _ => Err(status::Custom(Status::BadRequest, "Invalid mode provided")),
     }
 }
 
 #[post("/update/<user>")]
-pub async fn update<'a>(
+pub async fn update(
     user: String,
     conn: DbConn,
-) -> Result<Option<Json<crate::UpdateData>>, Status> {
-    let (conn, (_username, user_id)) = match crate::get_user_id(conn.0, &user)
+) -> Result<Option<Json<crate::UpdateData>>, status::Custom<&'static str>> {
+    let (_username, user_id) = match crate::get_user_id(&conn, &user)
         .await
         .map_err(stringify_internal_err)?
     {
-        (conn, Some(user_id)) => (conn, user_id),
-        (_conn, None) => {
+        Some(user_id) => user_id,
+        None => {
             warn!("No user found in DB with username={}", user);
             return Ok(None);
         }
     };
 
-    let last_update_time: Option<NaiveDateTime> =
-        block_in_place(|| db_util::get_last_update_timestamp(&conn, user_id))
-            .map_err(stringify_diesel_err)?;
+    let last_update_time: Option<NaiveDateTime> = conn
+        .run(move |conn| db_util::get_last_update_timestamp(conn, user_id))
+        .await
+        .map_err(stringify_diesel_err)?;
 
     let update_cooldown_remaining: Option<i64> = match last_update_time {
         Some(last_update_time) => {
@@ -68,23 +69,26 @@ pub async fn update<'a>(
     };
 
     if let Some(_) = update_cooldown_remaining {
-        return Err(Status::new(
-            429,
+        return Err(status::Custom(
+            Status::InternalServerError,
             "Updated too recently; must wait 10 seconds between updates",
         ));
     }
 
-    let stats_update = match crate::update_user(conn, user_id).await {
+    let stats_update = match crate::update_user(&conn, user_id).await {
         Ok(stats_update) => Ok(stats_update),
-        Err((crate::UpdateUserError::NotFound, _)) => {
+        Err(crate::UpdateUserError::NotFound) => {
             error!("User not found when performing update");
             return Ok(None);
         }
         Err(err) => Err(err),
     }
-    .map_err(|(err, _)| {
+    .map_err(|err| {
         error!("Error updating user: {:?}", err);
-        Status::new(500, "Error updating user; internal error")
+        status::Custom(
+            Status::InternalServerError,
+            "Error updating user; internal error",
+        )
     })?;
 
     Ok(Some(Json(stats_update)))
@@ -95,18 +99,20 @@ pub async fn get_scores(
     user: String,
     mode: String,
     conn: DbConn,
-) -> Result<Option<Json<GetScoresResponse>>, Status> {
-    let (conn, (_username, user_id)) = match crate::get_user_id(conn.0, &user)
+) -> Result<Option<Json<GetScoresResponse>>, status::Custom<&'static str>> {
+    let (_username, user_id) = match crate::get_user_id(&conn, &user)
         .await
         .map_err(stringify_internal_err)?
     {
-        (conn, Some(user_id)) => (conn, user_id),
-        (_conn, None) => return Ok(None),
+        Some(user_id) => user_id,
+        None => return Ok(None),
     };
 
     let mode = parse_mode(&mode)?;
-    let (maps, scores) =
-        db_util::get_scores_for_user(&conn, user_id, mode).map_err(stringify_diesel_err)?;
+    let (maps, scores) = conn
+        .run(move |conn| db_util::get_scores_for_user(&conn, user_id, mode))
+        .await
+        .map_err(stringify_diesel_err)?;
 
     let mut maps_by_id = HashMap::default();
     for map in maps {
@@ -124,54 +130,73 @@ pub async fn get_stats_history(
     user: String,
     mode: String,
     conn: DbConn,
-) -> Result<Option<Json<Vec<DBStatsUpdate>>>, Status> {
-    let (conn, (_username, user_id)) = match crate::get_user_id(conn.0, &user)
+) -> Result<Option<Json<Vec<DBStatsUpdate>>>, status::Custom<&'static str>> {
+    let (_username, user_id) = match crate::get_user_id(&conn, &user)
         .await
         .map_err(stringify_internal_err)?
     {
-        (conn, Some(user_id)) => (conn, user_id),
-        (_conn, None) => return Ok(None),
+        Some(user_id) => user_id,
+        None => return Ok(None),
     };
 
     let mode = parse_mode(&mode)?;
-    let updates = block_in_place(|| db_util::get_stats_updates_for_user(&conn, user_id, mode))
+    let updates = conn
+        .run(move |conn| db_util::get_stats_updates_for_user(conn, user_id, mode))
+        .await
         .map_err(stringify_diesel_err)?;
 
     Ok(Some(Json(updates)))
 }
 
 #[post("/update_oldest?<token>")]
-pub async fn update_oldest(conn: DbConn, token: String) -> Result<String, Status> {
+pub async fn update_oldest(
+    conn: DbConn,
+    token: String,
+) -> Result<String, status::Custom<&'static str>> {
     if token.as_str() != env!("UPDATE_TOKEN") {
-        return Err(Status::new(401, "Invalid update token provided"));
+        return Err(status::Custom(
+            Status::Unauthorized,
+            "Invalid update token provided",
+        ));
     }
 
-    let user_id_to_update =
-        tokio::task::block_in_place(|| crate::db_util::get_least_recently_updated_user_id(&conn))
-            .map_err(|err| {
+    let user_id_to_update = conn
+        .run(|conn| crate::db_util::get_least_recently_updated_user_id(conn))
+        .await
+        .map_err(|err| {
             error!("Error updating oldest user: {:?}", err);
-            Status::new(500, "Internal error while updating oldest user")
+            status::Custom(
+                Status::InternalServerError,
+                "Internal error while updating oldest user",
+            )
         })?;
-    if let Err((err, conn)) = crate::update_user(conn.0, user_id_to_update).await {
+    if let Err(err) = crate::update_user(&conn, user_id_to_update).await {
         error!("Error updating oldest user: {:?}", err);
         return Err(match err {
             crate::UpdateUserError::NotFound => {
-                tokio::task::block_in_place(|| {
+                conn.run(move |conn| {
                     use crate::db_util::schema::users;
                     use diesel::prelude::*;
 
                     let now = Utc::now().naive_utc();
                     diesel::update(users::table.filter(users::dsl::id.eq(user_id_to_update)))
                         .set(users::dsl::last_updated_at.eq(now))
-                        .execute(&conn)
+                        .execute(conn)
                 })
+                .await
                 .map_err(|err| {
                     error!("Error updating oldest user: {:?}", err);
-                    Status::new(500, "Internal error while updating oldest user")
+                    status::Custom(
+                        Status::InternalServerError,
+                        "Internal error while updating oldest user",
+                    )
                 })?;
-                Status::new(404, "User not found from Quaver API")
+                status::Custom(Status::NotFound, "User not found from Quaver API")
             }
-            _ => Status::new(500, "Internal error while updating oldest user"),
+            _ => status::Custom(
+                Status::InternalServerError,
+                "Internal error while updating oldest user",
+            ),
         });
     }
 
