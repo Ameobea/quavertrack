@@ -1,3 +1,5 @@
+set dotenv-load := true
+
 docker-build-backend:
   docker build --build-arg UPDATE_TOKEN=$UPDATE_TOKEN -t ameo/quavertrack-backend .
 

@@ -15,7 +15,7 @@ WORKDIR /root/backend
 
 RUN cargo build --release
 
-FROM debian:jessie
+FROM debian:12-slim
 
 RUN apt-get update && apt-get install -y libpq-dev
 
