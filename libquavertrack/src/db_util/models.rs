@@ -119,7 +119,7 @@ pub struct APIStatsUserInfo {
     pub mute_endtime: Option<DateTime<Utc>>,
     pub latest_activity: String,
     pub country: String,
-    pub avatar_url: String,
+    pub avatar_url: Option<String>,
     pub userpage: ::serde_json::Value,
     pub online: bool,
 }

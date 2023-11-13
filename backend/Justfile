@@ -2,3 +2,6 @@ set dotenv-load := true
 
 code:
   code .
+
+run:
+  cargo run
